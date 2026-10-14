@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "ConsoleScout": {
+      "commandName": "Project",
+      "commandLineArgs": "сколько будет квадратный корень из 8?"
+    }
+  }
+}
