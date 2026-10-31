@@ -361,3 +361,19 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
+._*
+
+# Local secrets (the app reads ~/.consolescout/secrets.json, but guard against a copy in the repo)
+secrets.json
+.env
+.env.*
