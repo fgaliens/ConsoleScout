@@ -118,6 +118,3 @@ internal sealed class Assistant : IDisposable
         return body is null ? "(empty body)" : new StreamReader(body).ReadToEnd();
     }
 }
-
-/// <summary>The model endpoint failed for a reason worth showing the user as is.</summary>
-internal sealed class AiException(string message) : Exception(message);

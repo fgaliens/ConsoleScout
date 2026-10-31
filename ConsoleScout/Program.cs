@@ -5,6 +5,7 @@ using ConsoleScout.AI.ToolProviders;
 using ConsoleScout.AssistantTools.Search;
 using ConsoleScout.Configuration;
 using ConsoleScout.Presentation;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console;
 
@@ -44,12 +45,15 @@ rootCommand.SetAction(async (parseResult, ct) =>
         return 1;
     }
 
-    var length = wantsLong ? AnswerLength.Long
-        : wantsShort ? AnswerLength.Short
-        : AnswerLength.Normal;
-
     try
     {
+        var configuration = ConfigurationLoader.Build();
+        var settings = ConfigurationLoader.Bind(configuration);
+
+        var length = wantsLong ? AnswerLength.Long
+            : wantsShort ? AnswerLength.Short
+            : settings.Preferences.AnswerLength;
+
         var words = parseResult.GetValue(questionArgument) ?? [];
         var question = words.Length > 0 ? string.Join(' ', words) : AnsiConsole.Prompt(Ask());
 
@@ -62,7 +66,8 @@ rootCommand.SetAction(async (parseResult, ct) =>
         StatusContext? status = null;
 
         await using var provider = BuildServices(
-            SettingsLoader.Load(),
+            configuration,
+            settings,
             query => status?.Status($"[green]Searching[/]: {Markup.Escape(query)}"));
 
         var assistant = provider.GetRequiredService<Assistant>();
@@ -96,13 +101,16 @@ rootCommand.SetAction(async (parseResult, ct) =>
     }
 });
 
-return await rootCommand.Parse(args).InvokeAsync();
+return await rootCommand
+    .Parse(args)
+    .InvokeAsync();
 
 // Search is registered only when enabled, so a disabled search never resolves its API key.
-static ServiceProvider BuildServices(AppSettings settings, Action<string> onSearching)
+static ServiceProvider BuildServices(IConfiguration configuration, AppSettings settings, Action<string> onSearching)
 {
     var services = new ServiceCollection();
 
+    services.AddSingleton(configuration);
     services.AddSingleton(settings);
 
     if (settings.Search.Enabled)
@@ -112,7 +120,7 @@ static ServiceProvider BuildServices(AppSettings settings, Action<string> onSear
             var search = provider.GetRequiredService<AppSettings>().Search;
 
             return new TavilySearch(
-                SecretsLoader.GetSearchKey(),
+                ConfigurationLoader.RequireKey(search.ApiKey, "Search:ApiKey", "web search"),
                 search.MaxResults,
                 TimeSpan.FromSeconds(search.TimeoutSeconds));
         });
@@ -121,11 +129,17 @@ static ServiceProvider BuildServices(AppSettings settings, Action<string> onSear
             new WebSearchTool(provider.GetRequiredService<IWebSearch>(), onSearching));
     }
 
-    services.AddSingleton(provider => new Assistant(
-        provider.GetRequiredService<AppSettings>().Model,
-        provider.GetRequiredService<AppSettings>().Output.Format,
-        SecretsLoader.GetModelKey(),
-        provider.GetService<WebSearchTool>()));
+    services.AddSingleton(provider =>
+    {
+        var appSettings = provider.GetRequiredService<AppSettings>();
+        var model = appSettings.Models.Main;
+
+        return new Assistant(
+            model,
+            appSettings.Output.Format,
+            ConfigurationLoader.RequireKey(model.ApiKey, "Models:Main:ApiKey", "the main model"),
+            provider.GetService<WebSearchTool>());
+    });
 
     services.AddSingleton(ConsoleTheme.Default);
 
