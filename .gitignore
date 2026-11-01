@@ -377,3 +377,6 @@ FodyWeavers.xsd
 secrets.json
 .env
 .env.*
+
+# Local settings layered over appsettings.json in Debug builds (real model endpoints)
+ConsoleScout/appsettings.Debug.json

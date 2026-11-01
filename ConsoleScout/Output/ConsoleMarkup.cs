@@ -1,6 +1,6 @@
 using System.Buffers;
 
-namespace ConsoleScout.Presentation;
+namespace ConsoleScout.Output;
 
 internal static class ConsoleMarkup
 {

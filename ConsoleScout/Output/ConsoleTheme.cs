@@ -1,4 +1,4 @@
-namespace ConsoleScout.Presentation;
+namespace ConsoleScout.Output;
 
 /// <summary>Spectre styles used when writing an answer. Every style is an init-only string so the
 /// whole theme can later be bound from appsettings.json without touching the writers.</summary>

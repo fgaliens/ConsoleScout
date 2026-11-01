@@ -1,3 +1,5 @@
 <Solution>
   <Project Path="ConsoleScout/ConsoleScout.csproj" />
+  <Project Path="ConsoleScout.Contracts/ConsoleScout.Contracts.csproj" />
+  <Project Path="ConsoleScout.Scraper/ConsoleScout.Scraper.csproj" />
 </Solution>

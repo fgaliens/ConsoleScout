@@ -1,0 +1,6 @@
+root = true
+
+[*.cs]
+# Braces around every if/else/for/foreach/while body, single-line ones included.
+csharp_prefer_braces = true:warning
+dotnet_diagnostic.IDE0011.severity = warning

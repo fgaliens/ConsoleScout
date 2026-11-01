@@ -1,8 +1,12 @@
 using Spectre.Console;
 
-namespace ConsoleScout.Presentation;
+namespace ConsoleScout.Output;
 
-internal sealed class MarkdownAnswerWriter(MarkdownRenderer renderer, ConsoleTheme theme) : AnswerWriter(theme)
+internal sealed class MarkdownAnswerWriter(MarkdownRenderer renderer) : AnswerWriter
 {
-    protected override void WriteAnswer(string answer) => AnsiConsole.Write(renderer.Render(answer));
+    protected override void WriteAnswer(string answer)
+    {
+        var rendered = renderer.Render(answer);
+        AnsiConsole.Write(rendered);
+    }
 }

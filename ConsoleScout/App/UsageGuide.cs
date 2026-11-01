@@ -1,0 +1,47 @@
+namespace ConsoleScout.App;
+
+/// <summary>The part of README.md shown by a run without arguments: the introduction, quick start and
+/// usage. The README is embedded in the executable, so the guide and the documentation cannot drift apart.</summary>
+internal static class UsageGuide
+{
+    private const string ResourceName = "ConsoleScout.README.md";
+
+    /// <summary>Second-level sections kept besides the introduction above the first of them.</summary>
+    private static readonly string[] Sections = ["Quick start", "Usage"];
+
+    private const string Footer =
+        "Configuration, models, the scraper and publishing are described in **README.md**.";
+
+    public static string Load()
+    {
+        using var stream = typeof(UsageGuide).Assembly.GetManifestResourceStream(ResourceName)
+            ?? throw new InvalidOperationException($"The embedded resource {ResourceName} is missing.");
+        using var reader = new StreamReader(stream);
+        var readme = reader.ReadToEnd();
+
+        var selected = Select(readme);
+        return $"{selected.TrimEnd()}\n\n{Footer}\n";
+    }
+
+    private static string Select(string readme)
+    {
+        var kept = new List<string>();
+        var keep = true;
+
+        foreach (var line in readme.Split('\n'))
+        {
+            if (line.StartsWith("## ", StringComparison.Ordinal))
+            {
+                var heading = line[3..].Trim();
+                keep = Sections.Contains(heading, StringComparer.OrdinalIgnoreCase);
+            }
+
+            if (keep)
+            {
+                kept.Add(line);
+            }
+        }
+
+        return string.Join('\n', kept);
+    }
+}

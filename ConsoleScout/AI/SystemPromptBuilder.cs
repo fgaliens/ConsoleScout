@@ -1,17 +1,12 @@
 using System.Text;
 using ConsoleScout.Configuration;
+using ConsoleScout.Tools;
 
 namespace ConsoleScout.AI;
 
-internal enum AnswerLength
-{
-    Normal,
-    Short,
-    Long,
-}
-
 /// <summary>Assembles the system prompt from the options in effect for one run, so that what the
-/// model is told always matches what it was actually given.</summary>
+/// model is told always matches what it was actually given: each tool contributes its own guidance,
+/// and a tool that is not registered is never mentioned.</summary>
 internal sealed class SystemPromptBuilder
 {
     private const string Role =
@@ -20,20 +15,14 @@ internal sealed class SystemPromptBuilder
         Always answer in the language the user wrote in.
         """;
 
-    private const string SearchAvailable =
+    private const string Citations =
         """
-        You have a web_search tool, and your training data is frozen in the past.
-        Call web_search whenever the answer depends on something you cannot verify from memory:
-        news, weather, prices, rates, schedules, statistics, release versions and dates,
-        and anything phrased as latest / newest / current / today.
-        "The most recent one I know of is X" is never an acceptable answer - search instead.
-        Answer directly, without searching, only for general knowledge, reasoning, writing and coding questions.
-
-        Cite sources as [1], [2] using the numbers from the search results, and only for results
-        a search actually returned. If you did not search, cite nothing and never invent a URL.
+        Do not add citation markers such as [1] and do not end with a list of sources. Give a link in the
+        text only when the link itself helps the user, such as a download or documentation page, and only
+        a URL a tool actually returned. Never invent a URL.
         """;
 
-    private const string SearchUnavailable =
+    private const string Offline =
         """
         You have no access to the internet, and your training data is frozen in the past.
         When the answer depends on something you cannot verify from memory - news, weather, prices,
@@ -74,13 +63,20 @@ internal sealed class SystemPromptBuilder
         when a link is needed. Write mathematics as plain Unicode, never as LaTeX.
         """;
 
-    private bool _searchAvailable;
+    private IReadOnlyList<IAssistantTool> _tools = [];
+    private string? _environment;
     private AnswerLength _length = AnswerLength.Normal;
     private AnswerFormat _format = AnswerFormat.Markdown;
 
-    public SystemPromptBuilder WithSearch(bool available)
+    public SystemPromptBuilder WithTools(IReadOnlyList<IAssistantTool> tools)
     {
-        _searchAvailable = available;
+        _tools = tools;
+        return this;
+    }
+
+    public SystemPromptBuilder WithEnvironment(string description)
+    {
+        _environment = description;
         return this;
     }
 
@@ -100,7 +96,25 @@ internal sealed class SystemPromptBuilder
     {
         var builder = new StringBuilder(Role);
 
-        Append(builder, _searchAvailable ? SearchAvailable : SearchUnavailable);
+        if (_environment is not null)
+        {
+            Append(builder, _environment);
+        }
+
+        if (_tools.Count == 0)
+        {
+            Append(builder, Offline);
+        }
+        else
+        {
+            foreach (var tool in _tools)
+            {
+                Append(builder, tool.PromptGuidance);
+            }
+
+            Append(builder, Citations);
+        }
+
         Append(builder, _length switch
         {
             AnswerLength.Short => ShortAnswer,

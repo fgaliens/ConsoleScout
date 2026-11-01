@@ -10,7 +10,7 @@ using MarkdigTableCell = Markdig.Extensions.Tables.TableCell;
 using MarkdigTableRow = Markdig.Extensions.Tables.TableRow;
 using SpectreTable = Spectre.Console.Table;
 
-namespace ConsoleScout.Presentation;
+namespace ConsoleScout.Output;
 
 /// <summary>Turns the Markdown a model produces into Spectre widgets. Markdig owns the parsing, so
 /// this type only maps syntax nodes to renderables and escapes every piece of literal text - the
@@ -23,8 +23,13 @@ internal sealed class MarkdownRenderer(ConsoleTheme theme)
         .UseAutoLinks()
         .Build();
 
-    public IRenderable Render(string markdown) =>
-        new Rows(RenderBlocks(Markdig.Markdown.Parse(MathTranscriber.Transcribe(markdown), Pipeline), null));
+    public IRenderable Render(string markdown)
+    {
+        var transcribed = MathTranscriber.Transcribe(markdown);
+        var document = Markdig.Markdown.Parse(transcribed, Pipeline);
+        var blocks = RenderBlocks(document, null);
+        return new Rows(blocks);
+    }
 
     private IEnumerable<IRenderable> RenderBlocks(ContainerBlock blocks, string? style)
     {
@@ -34,10 +39,14 @@ internal sealed class MarkdownRenderer(ConsoleTheme theme)
         {
             var rendered = RenderBlock(block, style);
             if (rendered is null)
+            {
                 continue;
+            }
 
             if (!first)
+            {
                 yield return Text.Empty;
+            }
 
             first = false;
             yield return rendered;
@@ -49,20 +58,47 @@ internal sealed class MarkdownRenderer(ConsoleTheme theme)
         HeadingBlock heading => RenderHeading(heading),
         MarkdigTable table => RenderTable(table),
         ListBlock list => RenderList(list, style),
-        QuoteBlock quote => new Padder(new Rows(RenderBlocks(quote, theme.Quote)), new Padding(2, 0, 0, 0)),
+        QuoteBlock quote => RenderQuote(quote),
         CodeBlock code => RenderCode(code),
-        ThematicBreakBlock => new Rule { Style = Style.Parse(theme.Rule) },
-        HtmlBlock html => new Text(ReadLines(html)),
-        LeafBlock leaf when leaf.Inline is not null => new Markup(ConsoleMarkup.Styled(RenderInlines(leaf.Inline), style)),
+        ThematicBreakBlock => RenderBreak(),
+        HtmlBlock html => RenderHtml(html),
+        LeafBlock leaf when leaf.Inline is not null => RenderLeaf(leaf.Inline, style),
         _ => null,
     };
 
+    private IRenderable RenderQuote(QuoteBlock quote)
+    {
+        var blocks = RenderBlocks(quote, theme.Quote);
+        return new Padder(new Rows(blocks), new Padding(2, 0, 0, 0));
+    }
+
+    private IRenderable RenderBreak()
+    {
+        var style = Style.Parse(theme.Rule);
+        return new Rule { Style = style };
+    }
+
+    private static IRenderable RenderHtml(HtmlBlock html)
+    {
+        var lines = ReadLines(html);
+        return new Text(lines);
+    }
+
+    private IRenderable RenderLeaf(ContainerInline inline, string? style)
+    {
+        var markup = RenderInlines(inline);
+        var styled = ConsoleMarkup.Styled(markup, style);
+        return new Markup(styled);
+    }
+
     private IRenderable RenderHeading(HeadingBlock heading)
     {
-        var title = ConsoleMarkup.Styled(RenderInlines(heading.Inline), theme.Heading);
+        var inlines = RenderInlines(heading.Inline);
+        var title = ConsoleMarkup.Styled(inlines, theme.Heading);
+        var ruleStyle = Style.Parse(theme.Rule);
 
         return heading.Level <= 2
-            ? new Rule(title) { Style = Style.Parse(theme.Rule), Justification = Justify.Left }
+            ? new Rule(title) { Style = ruleStyle, Justification = Justify.Left }
             : new Markup(title);
     }
 
@@ -77,12 +113,14 @@ internal sealed class MarkdownRenderer(ConsoleTheme theme)
         foreach (var block in list)
         {
             if (block is not ListItemBlock item)
+            {
                 continue;
+            }
 
             var marker = list.IsOrdered ? $"{number++}." : "•";
-            grid.AddRow(
-                new Markup(ConsoleMarkup.Styled(marker, theme.ListMarker)),
-                new Rows(RenderBlocks(item, style)));
+            var styledMarker = ConsoleMarkup.Styled(marker, theme.ListMarker);
+            var content = RenderBlocks(item, style);
+            grid.AddRow(new Markup(styledMarker), new Rows(content));
         }
 
         return grid;
@@ -90,18 +128,25 @@ internal sealed class MarkdownRenderer(ConsoleTheme theme)
 
     private IRenderable RenderCode(CodeBlock code)
     {
-        var panel = new Panel(new Text(ReadLines(code), Style.Parse(theme.CodeBlock)))
+        var lines = ReadLines(code);
+        var textStyle = Style.Parse(theme.CodeBlock);
+        var borderStyle = Style.Parse(theme.CodeBorder);
+        var panel = new Panel(new Text(lines, textStyle))
         {
             Border = BoxBorder.Rounded,
-            BorderStyle = Style.Parse(theme.CodeBorder),
+            BorderStyle = borderStyle,
             Expand = false,
         };
 
         var language = (code as FencedCodeBlock)?.Info;
+        if (string.IsNullOrWhiteSpace(language))
+        {
+            return panel;
+        }
 
-        return string.IsNullOrWhiteSpace(language)
-            ? panel
-            : panel.Header(ConsoleMarkup.Styled(Markup.Escape(language), theme.CodeLanguage));
+        var escaped = Markup.Escape(language);
+        var header = ConsoleMarkup.Styled(escaped, theme.CodeLanguage);
+        return panel.Header(header);
     }
 
     private IRenderable RenderTable(MarkdigTable table)
@@ -111,19 +156,23 @@ internal sealed class MarkdownRenderer(ConsoleTheme theme)
         foreach (var block in table)
         {
             if (block is not MarkdigTableRow row)
+            {
                 continue;
+            }
 
             var cells = new List<IRenderable>();
             foreach (var child in row)
             {
                 if (child is MarkdigTableCell cell)
                 {
-                    var content = ConsoleMarkup.Styled(RenderCell(cell), row.IsHeader ? theme.TableHeader : null);
+                    var text = RenderCell(cell);
+                    var content = ConsoleMarkup.Styled(text, row.IsHeader ? theme.TableHeader : null);
                     cells.Add(new Markup(content));
                 }
             }
 
-            rows.Add((row.IsHeader, cells.ToArray()));
+            var renderedCells = cells.ToArray();
+            rows.Add((row.IsHeader, renderedCells));
         }
 
         var rendered = new SpectreTable
@@ -146,12 +195,16 @@ internal sealed class MarkdownRenderer(ConsoleTheme theme)
         }
 
         if (header is null)
+        {
             rendered.HideHeaders();
+        }
 
         foreach (var row in rows)
         {
             if (!row.IsHeader)
+            {
                 rendered.AddRow(row.Cells);
+            }
         }
 
         return rendered;
@@ -160,7 +213,9 @@ internal sealed class MarkdownRenderer(ConsoleTheme theme)
     private static Justify? Alignment(List<TableColumnDefinition> definitions, int index)
     {
         if (index >= definitions.Count)
+        {
             return null;
+        }
 
         return definitions[index].Alignment switch
         {
@@ -178,12 +233,17 @@ internal sealed class MarkdownRenderer(ConsoleTheme theme)
         foreach (var block in cell)
         {
             if (block is not LeafBlock { Inline: not null } leaf)
+            {
                 continue;
+            }
 
             if (builder.Length > 0)
+            {
                 builder.Append(' ');
+            }
 
-            builder.Append(RenderInlines(leaf.Inline));
+            var inlines = RenderInlines(leaf.Inline);
+            builder.Append(inlines);
         }
 
         return builder.ToString();
@@ -199,10 +259,14 @@ internal sealed class MarkdownRenderer(ConsoleTheme theme)
     private void AppendInlines(StringBuilder builder, ContainerInline? container)
     {
         if (container is null)
+        {
             return;
+        }
 
         foreach (var inline in container)
+        {
             AppendInline(builder, inline);
+        }
     }
 
     private void AppendInline(StringBuilder builder, Inline inline)
@@ -210,32 +274,47 @@ internal sealed class MarkdownRenderer(ConsoleTheme theme)
         switch (inline)
         {
             case LiteralInline literal:
-                builder.Append(Markup.Escape(literal.Content.ToString()));
+            {
+                var text = literal.Content.ToString();
+                var escaped = Markup.Escape(text);
+                builder.Append(escaped);
                 break;
+            }
 
             case EmphasisInline emphasis:
                 AppendEmphasis(builder, emphasis);
                 break;
 
             case CodeInline code:
-                builder.Append(ConsoleMarkup.Styled(Markup.Escape(code.Content), theme.Code));
+            {
+                var escaped = Markup.Escape(code.Content);
+                var styled = ConsoleMarkup.Styled(escaped, theme.Code);
+                builder.Append(styled);
                 break;
+            }
 
             case LinkInline link:
                 AppendLink(builder, link);
                 break;
 
             case AutolinkInline autolink:
-                builder.Append(ConsoleMarkup.Link(autolink.Url, Markup.Escape(autolink.Url), theme.Link));
+            {
+                var label = Markup.Escape(autolink.Url);
+                var linked = ConsoleMarkup.Link(autolink.Url, label, theme.Link);
+                builder.Append(linked);
                 break;
+            }
 
             case LineBreakInline lineBreak:
                 builder.Append(lineBreak.IsHard ? '\n' : ' ');
                 break;
 
             case HtmlInline html:
-                builder.Append(Markup.Escape(html.Tag));
+            {
+                var escaped = Markup.Escape(html.Tag);
+                builder.Append(escaped);
                 break;
+            }
 
             case ContainerInline nested:
                 AppendInlines(builder, nested);
@@ -272,11 +351,14 @@ internal sealed class MarkdownRenderer(ConsoleTheme theme)
     {
         var label = RenderInlines(link);
         if (label.Length == 0)
+        {
             label = Markup.Escape(link.Url ?? string.Empty);
+        }
 
-        builder.Append(link.IsImage
+        var rendered = link.IsImage
             ? ConsoleMarkup.Styled(label, theme.Link)
-            : ConsoleMarkup.Link(link.Url, label, theme.Link));
+            : ConsoleMarkup.Link(link.Url, label, theme.Link);
+        builder.Append(rendered);
     }
 
     private static string ReadLines(LeafBlock block)
@@ -286,9 +368,12 @@ internal sealed class MarkdownRenderer(ConsoleTheme theme)
         for (int i = 0; i < block.Lines.Count; i++)
         {
             if (i > 0)
+            {
                 builder.Append('\n');
+            }
 
-            builder.Append(block.Lines.Lines[i].Slice.ToString());
+            var line = block.Lines.Lines[i].Slice.ToString();
+            builder.Append(line);
         }
 
         return builder.ToString();

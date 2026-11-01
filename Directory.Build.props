@@ -1,0 +1,8 @@
+<Project>
+
+  <!-- Report .editorconfig code-style rules (e.g. IDE0011, braces) during dotnet build, not only in the IDE. -->
+  <PropertyGroup>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+
+</Project>

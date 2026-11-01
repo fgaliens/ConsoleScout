@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace ConsoleScout.Presentation;
+namespace ConsoleScout.Output;
 
 /// <summary>Rewrites the LaTeX models keep falling back to into plain Unicode, so that a formula
 /// reads as a formula in a terminal. Only delimited spans are converted and code is copied
@@ -16,7 +16,9 @@ internal static class MathTranscriber
     public static string Transcribe(string text)
     {
         if (!text.Contains('\\') && !text.Contains("$$", StringComparison.Ordinal))
+        {
             return text;
+        }
 
         var builder = new StringBuilder(text.Length);
         var converted = false;
@@ -52,7 +54,9 @@ internal static class MathTranscriber
     {
         var ticks = 0;
         while (start + ticks < text.Length && text[start + ticks] == '`')
+        {
             ticks++;
+        }
 
         var i = start + ticks;
         while (i < text.Length)
@@ -65,10 +69,14 @@ internal static class MathTranscriber
 
             var run = 0;
             while (i + run < text.Length && text[i + run] == '`')
+            {
                 run++;
+            }
 
             if (run >= ticks)
+            {
                 return i + run;
+            }
 
             i += run;
         }
@@ -83,11 +91,15 @@ internal static class MathTranscriber
 
         var (open, close) = Delimiters(text, start);
         if (open == 0)
+        {
             return false;
+        }
 
         var end = text.IndexOf(close, start + open, StringComparison.Ordinal);
         if (end < 0)
+        {
             return false;
+        }
 
         math = text.AsSpan(start + open, end - start - open);
         next = end + close.Length;
@@ -97,7 +109,9 @@ internal static class MathTranscriber
     private static (int Open, string Close) Delimiters(string text, int i)
     {
         if (i + 1 >= text.Length)
+        {
             return (0, "");
+        }
 
         return (text[i], text[i + 1]) switch
         {
@@ -146,7 +160,9 @@ internal static class MathTranscriber
         i++;
 
         if (i >= math.Length)
+        {
             return;
+        }
 
         if (!char.IsLetter(math[i]))
         {
@@ -157,7 +173,9 @@ internal static class MathTranscriber
 
         var start = i;
         while (i < math.Length && char.IsLetter(math[i]))
+        {
             i++;
+        }
 
         var name = math[start..i];
 
@@ -172,7 +190,8 @@ internal static class MathTranscriber
                 return;
 
             case "text" or "textrm" or "mathrm" or "mathbf" or "mathit" or "operatorname":
-                AppendMath(builder, ReadGroup(math, ref i));
+                var group = ReadGroup(math, ref i);
+                AppendMath(builder, group);
                 return;
 
             case "begin" or "end":
@@ -188,7 +207,8 @@ internal static class MathTranscriber
                 return;
 
             default:
-                builder.Append(Symbol(name) ?? name.ToString());
+                var symbol = Symbol(name) ?? name.ToString();
+                builder.Append(symbol);
                 return;
         }
     }
@@ -243,11 +263,13 @@ internal static class MathTranscriber
                 break;
 
             default:
-                builder.Append(Script(degree, superscript: true) ?? degree).Append('√');
+                var index = Script(degree, superscript: true) ?? degree;
+                builder.Append(index).Append('√');
                 break;
         }
 
-        AppendOperand(builder, ReadGroup(math, ref i));
+        var operand = ReadGroup(math, ref i);
+        AppendOperand(builder, operand);
     }
 
     private static void AppendOperand(StringBuilder builder, ReadOnlySpan<char> operand)
@@ -255,12 +277,16 @@ internal static class MathTranscriber
         var bracketed = NeedsBrackets(operand);
 
         if (bracketed)
+        {
             builder.Append('(');
+        }
 
         AppendMath(builder, operand);
 
         if (bracketed)
+        {
             builder.Append(')');
+        }
     }
 
     /// <summary>True when the operand would bind wrong once the fraction bar or the root sign is
@@ -295,7 +321,8 @@ internal static class MathTranscriber
         i++;
 
         var content = new StringBuilder();
-        AppendMath(content, ReadGroup(math, ref i));
+        var group = ReadGroup(math, ref i);
+        AppendMath(content, group);
         var text = content.ToString();
 
         var mapped = Script(text, superscript);
@@ -308,15 +335,21 @@ internal static class MathTranscriber
         builder.Append(superscript ? '^' : '_');
 
         if (text.Length > 1)
+        {
             builder.Append('(').Append(text).Append(')');
+        }
         else
+        {
             builder.Append(text);
+        }
     }
 
     private static string? Script(string text, bool superscript)
     {
         if (text.Length == 0)
+        {
             return null;
+        }
 
         var source = superscript ? ScriptSource : SubscriptSource;
         var target = superscript ? Superscripts : Subscripts;
@@ -326,7 +359,9 @@ internal static class MathTranscriber
         {
             var index = source.IndexOf(c);
             if (index < 0)
+            {
                 return null;
+            }
 
             builder.Append(target[index]);
         }
@@ -339,10 +374,14 @@ internal static class MathTranscriber
     private static ReadOnlySpan<char> ReadGroup(ReadOnlySpan<char> math, ref int i)
     {
         while (i < math.Length && math[i] == ' ')
+        {
             i++;
+        }
 
         if (i >= math.Length)
+        {
             return default;
+        }
 
         if (math[i] != '{')
         {
@@ -351,7 +390,9 @@ internal static class MathTranscriber
             if (math[token] == '\\')
             {
                 while (i < math.Length && char.IsLetter(math[i]))
+                {
                     i++;
+                }
             }
 
             return math[token..i];
@@ -381,11 +422,15 @@ internal static class MathTranscriber
     private static string? ReadDegree(ReadOnlySpan<char> math, ref int i)
     {
         if (i >= math.Length || math[i] != '[')
+        {
             return null;
+        }
 
         var end = math[i..].IndexOf(']');
         if (end < 0)
+        {
             return null;
+        }
 
         var degree = math.Slice(i + 1, end - 1).ToString();
         i += end + 1;
@@ -410,7 +455,9 @@ internal static class MathTranscriber
             }
 
             if (pending && builder.Length > start && builder[builder.Length - 1] != '\n')
+            {
                 builder.Append(' ');
+            }
 
             pending = false;
             builder.Append(c);

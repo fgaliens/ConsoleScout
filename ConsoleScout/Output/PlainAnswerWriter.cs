@@ -1,8 +1,12 @@
 using Spectre.Console;
 
-namespace ConsoleScout.Presentation;
+namespace ConsoleScout.Output;
 
-internal sealed class PlainAnswerWriter(ConsoleTheme theme) : AnswerWriter(theme)
+internal sealed class PlainAnswerWriter : AnswerWriter
 {
-    protected override void WriteAnswer(string answer) => AnsiConsole.WriteLine(MathTranscriber.Transcribe(answer));
+    protected override void WriteAnswer(string answer)
+    {
+        var text = MathTranscriber.Transcribe(answer);
+        AnsiConsole.WriteLine(text);
+    }
 }

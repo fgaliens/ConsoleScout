@@ -1,19 +1,10 @@
 using System.CommandLine;
-using System.Text;
 using ConsoleScout.AI;
-using ConsoleScout.AI.ToolProviders;
-using ConsoleScout.AssistantTools.Search;
-using ConsoleScout.Configuration;
-using ConsoleScout.Presentation;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Spectre.Console;
-
-Console.OutputEncoding = Encoding.UTF8;
+using ConsoleScout.App;
 
 var questionArgument = new Argument<string[]>("question")
 {
-    Description = "The question to answer, unquoted. Omitted, it is asked interactively",
+    Description = "The question to answer, unquoted. Omitted: shows the usage guide and setup status, then asks for one",
     Arity = ArgumentArity.ZeroOrMore,
 };
 
@@ -27,139 +18,85 @@ var shortAnswerOption = new Option<bool>(name: "--short", aliases: ["-s"])
     Description = "Show the shortest answer",
 };
 
+var setKeyOption = new Option<string[]>(name: "--set-key", aliases: ["-k"])
+{
+    Description = "Save a model's API key to ~/.consolescout/secrets.json: -k main asks for it without echoing, "
+        + "-k main=<key> takes it as given. Models: main, summarizer. Repeatable",
+    HelpName = "model[=key]",
+};
+
+var runScraperOption = new Option<bool>(name: "--run-scraper", aliases: ["-r"])
+{
+    Description = "Start the scraper and wait until its browser is ready (downloads Chromium on first use if needed)",
+};
+
+var donateOption = new Option<string?>(name: "--donate")
+{
+    Description = "Support the developer: lists the networks; --donate <network> shows the address and QR code",
+    HelpName = "network",
+    Arity = ArgumentArity.ZeroOrOne,
+};
+
+var noDonateOption = new Option<bool>(name: "--no-donate")
+{
+    Description = "Stop showing the donation hint while the model thinks",
+};
+
 var rootCommand = new RootCommand("Console Scout")
 {
     questionArgument,
     longAnswerOption,
     shortAnswerOption,
+    setKeyOption,
+    runScraperOption,
+    donateOption,
+    noDonateOption,
 };
 
-rootCommand.SetAction(async (parseResult, ct) =>
+HelpLayout.Apply(rootCommand);
+
+// Reported by System.CommandLine like any other usage error, before anything runs.
+rootCommand.Validators.Add(result =>
 {
-    var wantsLong = parseResult.GetValue(longAnswerOption);
-    var wantsShort = parseResult.GetValue(shortAnswerOption);
-
-    if (wantsLong && wantsShort)
+    if (result.GetValue(longAnswerOption) && result.GetValue(shortAnswerOption))
     {
-        Console.Error.WriteLine("--long and --short cannot be used together.");
-        return 1;
+        result.AddError("--long and --short cannot be used together.");
     }
 
-    try
+    var actions = new[]
     {
-        var configuration = ConfigurationLoader.Build();
-        var settings = ConfigurationLoader.Bind(configuration);
-
-        var length = wantsLong ? AnswerLength.Long
-            : wantsShort ? AnswerLength.Short
-            : settings.Preferences.AnswerLength;
-
-        var words = parseResult.GetValue(questionArgument) ?? [];
-        var question = words.Length > 0 ? string.Join(' ', words) : AnsiConsole.Prompt(Ask());
-
-        if (string.IsNullOrWhiteSpace(question))
-        {
-            return 0;
-        }
-
-        // Assigned once the spinner exists; the search callback reads it through the closure.
-        StatusContext? status = null;
-
-        await using var provider = BuildServices(
-            configuration,
-            settings,
-            query => status?.Status($"[green]Searching[/]: {Markup.Escape(query)}"));
-
-        var assistant = provider.GetRequiredService<Assistant>();
-        var tool = provider.GetService<WebSearchTool>();
-
-        var answer = await AnsiConsole.Status()
-            .Spinner(Spinner.Known.Star)
-            .StartAsync("[green]Thinking[/]...", async ctx =>
-            {
-                status = ctx;
-                return await assistant.AskAsync(question, length, ct);
-            });
-
-        provider.GetRequiredService<IAnswerWriter>().Write(answer, tool?.Sources ?? []);
-        return 0;
-    }
-    catch (ConfigurationException ex)
+        (result.GetValue(questionArgument) ?? []).Length > 0,
+        (result.GetValue(setKeyOption) ?? []).Length > 0,
+        result.GetValue(runScraperOption),
+        result.GetResult(donateOption) is not null,
+        result.GetValue(noDonateOption),
+    };
+    if (actions.Count(given => given) > 1)
     {
-        Console.Error.WriteLine(ex.Message);
-        return 1;
+        result.AddError("A question, --set-key, --run-scraper, --donate and --no-donate cannot be combined; give one of them.");
     }
-    catch (AiException ex)
-    {
-        Console.Error.WriteLine(ex.Message);
-        return 1;
-    }
-    catch (Exception ex)
-    {
-        Console.Error.WriteLine(ex.ToString());
-        return 1;
-    }
+});
+
+rootCommand.SetAction((parseResult, ct) =>
+{
+    var words = parseResult.GetValue(questionArgument) ?? [];
+
+    AnswerLength? length = parseResult.GetValue(longAnswerOption) ? AnswerLength.Long
+        : parseResult.GetValue(shortAnswerOption) ? AnswerLength.Short
+        : null;
+
+    return ConsoleScoutApp.RunAsync(
+        new CommandLineOptions(
+            Question: words.Length > 0 ? string.Join(' ', words) : null,
+            Length: length,
+            SetKeys: parseResult.GetValue(setKeyOption) ?? [],
+            RunScraper: parseResult.GetValue(runScraperOption),
+            Donate: parseResult.GetResult(donateOption) is not null,
+            DonateNetwork: parseResult.GetValue(donateOption),
+            NoDonate: parseResult.GetValue(noDonateOption)),
+        ct);
 });
 
 return await rootCommand
     .Parse(args)
     .InvokeAsync();
-
-// Search is registered only when enabled, so a disabled search never resolves its API key.
-static ServiceProvider BuildServices(IConfiguration configuration, AppSettings settings, Action<string> onSearching)
-{
-    var services = new ServiceCollection();
-
-    services.AddSingleton(configuration);
-    services.AddSingleton(settings);
-
-    if (settings.Search.Enabled)
-    {
-        services.AddSingleton<IWebSearch>(provider =>
-        {
-            var search = provider.GetRequiredService<AppSettings>().Search;
-
-            return new TavilySearch(
-                ConfigurationLoader.RequireKey(search.ApiKey, "Search:ApiKey", "web search"),
-                search.MaxResults,
-                TimeSpan.FromSeconds(search.TimeoutSeconds));
-        });
-
-        services.AddSingleton(provider =>
-            new WebSearchTool(provider.GetRequiredService<IWebSearch>(), onSearching));
-    }
-
-    services.AddSingleton(provider =>
-    {
-        var appSettings = provider.GetRequiredService<AppSettings>();
-        var model = appSettings.Models.Main;
-
-        return new Assistant(
-            model,
-            appSettings.Output.Format,
-            ConfigurationLoader.RequireKey(model.ApiKey, "Models:Main:ApiKey", "the main model"),
-            provider.GetService<WebSearchTool>());
-    });
-
-    services.AddSingleton(ConsoleTheme.Default);
-
-    services.AddSingleton<IAnswerWriter>(provider =>
-    {
-        var theme = provider.GetRequiredService<ConsoleTheme>();
-
-        return provider.GetRequiredService<AppSettings>().Output.Format switch
-        {
-            AnswerFormat.Plain => new PlainAnswerWriter(theme),
-            _ => new MarkdownAnswerWriter(new MarkdownRenderer(theme), theme),
-        };
-    });
-
-    return services.BuildServiceProvider();
-}
-
-static TextPrompt<string> Ask()
-{
-    return new TextPrompt<string>("What is your question?")
-        .DefaultValue("What is the weather for today?")
-        .ShowDefaultValue();
-}

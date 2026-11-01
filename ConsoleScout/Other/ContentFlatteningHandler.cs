@@ -20,12 +20,16 @@ internal sealed class ContentFlatteningHandler() : DelegatingHandler(new HttpCli
 
         // Streaming (text/event-stream) and binary responses are left alone entirely.
         if (response.Content.Headers.ContentType?.MediaType != "application/json")
+        {
             return response;
+        }
 
         // Read as bytes: JsonDocument parses UTF-8 directly, with no decoding into a string.
         var payload = await response.Content.ReadAsByteArrayAsync(ct);
         if (!TryFlatten(payload, out var flattened))
+        {
             return response; // HttpContent has already buffered the body, so the SDK can read it again.
+        }
 
         response.Content.Dispose();
         response.Content = new ByteArrayContent(flattened);
@@ -52,11 +56,15 @@ internal sealed class ContentFlatteningHandler() : DelegatingHandler(new HttpCli
         using (document)
         {
             if (!NeedsFlattening(document.RootElement))
+            {
                 return false;
+            }
 
             var buffer = new ArrayBufferWriter<byte>(payload.Length);
             using (var writer = new Utf8JsonWriter(buffer))
+            {
                 WriteRoot(document.RootElement, writer);
+            }
 
             flattened = buffer.WrittenSpan.ToArray();
             return true;
@@ -69,7 +77,9 @@ internal sealed class ContentFlatteningHandler() : DelegatingHandler(new HttpCli
         if (root.ValueKind != JsonValueKind.Object
             || !root.TryGetProperty("choices", out var choices)
             || choices.ValueKind != JsonValueKind.Array)
+        {
             return false;
+        }
 
         foreach (var choice in choices.EnumerateArray())
         {
@@ -78,7 +88,9 @@ internal sealed class ContentFlatteningHandler() : DelegatingHandler(new HttpCli
                 && message.ValueKind == JsonValueKind.Object
                 && message.TryGetProperty("content", out var content)
                 && content.ValueKind == JsonValueKind.Array)
+            {
                 return true;
+            }
         }
 
         return false;
@@ -93,7 +105,10 @@ internal sealed class ContentFlatteningHandler() : DelegatingHandler(new HttpCli
             {
                 writer.WriteStartArray("choices");
                 foreach (var choice in property.Value.EnumerateArray())
+                {
                     WriteChoice(choice, writer);
+                }
+
                 writer.WriteEndArray();
             }
             else
@@ -117,9 +132,13 @@ internal sealed class ContentFlatteningHandler() : DelegatingHandler(new HttpCli
         foreach (var property in choice.EnumerateObject())
         {
             if (property.NameEquals("message") && property.Value.ValueKind == JsonValueKind.Object)
+            {
                 WriteMessage(property.Value, writer);
+            }
             else
+            {
                 property.WriteTo(writer);
+            }
         }
 
         writer.WriteEndObject();
@@ -131,9 +150,14 @@ internal sealed class ContentFlatteningHandler() : DelegatingHandler(new HttpCli
         foreach (var property in message.EnumerateObject())
         {
             if (property.NameEquals("content") && property.Value.ValueKind == JsonValueKind.Array)
-                writer.WriteString("content", FlattenContent(property.Value));
+            {
+                var flattened = FlattenContent(property.Value);
+                writer.WriteString("content", flattened);
+            }
             else
+            {
                 property.WriteTo(writer);
+            }
         }
 
         writer.WriteEndObject();
@@ -146,22 +170,26 @@ internal sealed class ContentFlatteningHandler() : DelegatingHandler(new HttpCli
         {
             if (chunk.ValueKind == JsonValueKind.String)
             {
-                builder.Append(chunk.GetString());
+                var value = chunk.GetString();
+                builder.Append(value);
                 continue;
             }
 
             if (chunk.ValueKind != JsonValueKind.Object
                 || !chunk.TryGetProperty("type", out var type)
                 || type.ValueKind != JsonValueKind.String)
+            {
                 continue;
+            }
 
             // ValueEquals compares against a UTF-8 literal without materializing the string.
             if (type.ValueEquals("text"))
+            {
                 AppendText(chunk, builder);
-            else if (type.ValueEquals("reference"))
-                AppendReferences(chunk, builder);
+            }
 
-            // Other types (thinking, image_url, ...) are skipped: not crashing matters more than not losing data.
+            // Everything else is skipped: reference chunks because answers carry no citation markers, and
+            // other types (thinking, image_url, ...) because not crashing matters more than not losing data.
         }
 
         return builder.ToString();
@@ -170,33 +198,9 @@ internal sealed class ContentFlatteningHandler() : DelegatingHandler(new HttpCli
     private static void AppendText(JsonElement chunk, StringBuilder builder)
     {
         if (chunk.TryGetProperty("text", out var text) && text.ValueKind == JsonValueKind.String)
-            builder.Append(text.GetString());
-    }
-
-    private static void AppendReferences(JsonElement chunk, StringBuilder builder)
-    {
-        if (!chunk.TryGetProperty("reference_ids", out var ids) || ids.ValueKind != JsonValueKind.Array)
-            return;
-
-        // These match the numbering of our own tool output, so they are printed verbatim.
-        // The [2,3] shape is the same one the model uses when citing inline.
-        var written = 0;
-        foreach (var id in ids.EnumerateArray())
         {
-            // Ids arrive as either numbers or strings; both are accepted.
-            switch (id.ValueKind)
-            {
-                case JsonValueKind.Number when id.TryGetInt32(out var number):
-                    builder.Append(written++ == 0 ? '[' : ',').Append(number);
-                    break;
-
-                case JsonValueKind.String when id.GetString() is { Length: > 0 } value:
-                    builder.Append(written++ == 0 ? '[' : ',').Append(value);
-                    break;
-            }
+            var value = text.GetString();
+            builder.Append(value);
         }
-
-        if (written > 0)
-            builder.Append(']');
     }
 }
