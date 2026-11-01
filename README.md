@@ -57,12 +57,14 @@ two questions and adds `csc` to your `PATH`. Press Enter to keep a default:
 On macOS and Linux it then offers to add that directory to your shell's `PATH` and, in zsh, to make `?`
 work in questions (see [Troubleshooting](#troubleshooting)). Open a new terminal afterwards.
 
-Web search uses Google Chrome when it is installed; otherwise a browser is downloaded on first use.
+Finally it starts the background service that searches the web and keeps your history, so the first
+question is answered without delay. Web search uses Google Chrome when it is installed; otherwise the
+installer downloads a browser at this step, which can take a minute.
 
 ### Updating
 
-Run the same command again. It updates in place without asking anything and keeps your keys, settings
-and history.
+Run the same command again. It updates in place without asking anything, keeps your keys, settings
+and history, and restarts the background service in the new version.
 
 ### Installing without questions
 

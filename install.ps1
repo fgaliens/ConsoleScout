@@ -181,6 +181,26 @@ try {
         $pathChanged = Add-ToUserPath $installDir
     }
 
+    # --- start the agent ---------------------------------------------------------------------------------
+
+    # Started now, so the first question does not wait for it: --run-agent also waits for the browser, and
+    # downloads one when Chrome is missing. An update restarts the agent it stopped, now in the new version.
+    # Not fatal: the agent also starts by itself with the first question that needs it.
+    Write-Host ''
+    Write-Host 'Starting the background agent (the first start can take a minute)...'
+    $exe = Join-Path $installDir 'ConsoleScout.exe'
+    try {
+        & $exe --run-agent
+        $started = $LASTEXITCODE -eq 0
+    }
+    catch {
+        $started = $false
+    }
+    if (-not $started) {
+        Write-Host 'The agent could not be started now; it starts by itself with the first question.'
+        Write-Host "Details are in $(Join-Path $DataDir 'agent.log')."
+    }
+
     Write-Host ''
     Write-Host "ConsoleScout $version is installed in $installDir."
     if (-not $updating) {

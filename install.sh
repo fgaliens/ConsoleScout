@@ -322,6 +322,18 @@ if [ "$updating" = false ]; then
     [ -n "$block" ] && write_rc_block "$rc" "$block"
 fi
 
+# --- start the agent -------------------------------------------------------------------------------------
+
+# Started now, so the first question does not wait for it: --run-agent also waits for the browser, and
+# downloads one when Chrome is missing. An update restarts the agent it stopped, now in the new version.
+# Not fatal: the agent also starts by itself with the first question that needs it.
+say ""
+say "Starting the background agent (the first start can take a minute)..."
+if ! "$install_dir/ConsoleScout" --run-agent </dev/null; then
+    say "The agent could not be started now; it starts by itself with the first question."
+    say "Details are in $DATA_DIR/agent.log."
+fi
+
 # --- done ----------------------------------------------------------------------------------------------
 
 say ""
