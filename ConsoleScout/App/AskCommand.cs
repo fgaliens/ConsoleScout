@@ -18,6 +18,9 @@ internal sealed class AskCommand(
     AgentClient agent,
     AppSettings settings)
 {
+    /// <summary>How long saving may take before a spinner says that it is still going on.</summary>
+    private static readonly TimeSpan SpinnerDelay = TimeSpan.FromMilliseconds(300);
+
     private const string DonateHint = "Like this tool? Help the developer: run ConsoleScout --donate for details.";
 
     /// <param name="reference">The earlier answer to follow up on, or null for a standalone question.</param>
@@ -72,17 +75,34 @@ internal sealed class AskCommand(
     }
 
     /// <summary>A failure here costs only the follow-up, never the answer already on screen.</summary>
+    /// <summary>A failure here costs only the follow-up, never the answer already on screen: even an agent
+    /// that cannot be found at all (a configuration error) ends in a note, not in a failed run.</summary>
     private async Task SaveAsync(string question, string answer, long? parent, CancellationToken ct)
     {
         var request = new AppendHistoryRequest(TerminalSession.Id, parent, question, answer);
         try
         {
-            var id = await agent.AppendHistoryAsync(request, ct);
+            var saving = agent.AppendHistoryAsync(request, ct);
+            var id = await WaitVisiblyAsync(saving);
             ui.WriteAnswerId(id);
         }
-        catch (Exception ex) when (ex is AgentException or AgentUnavailableException)
+        catch (Exception ex) when (ex is AgentException or AgentUnavailableException or ConfigurationException)
         {
             ui.WriteNote($"(not saved to the history: {ex.Message})");
         }
+    }
+
+    /// <summary>Usually the agent is up by now and saving takes milliseconds, so a spinner would only flash.
+    /// When the agent is still starting, the wait can be long, and a silent terminal looks stuck.</summary>
+    private async Task<long> WaitVisiblyAsync(Task<long> saving)
+    {
+        var grace = Task.Delay(SpinnerDelay);
+        var first = await Task.WhenAny(saving, grace);
+        if (first == saving)
+        {
+            return await saving;
+        }
+
+        return await ui.RunWithStatusAsync("Saving to history", () => saving);
     }
 }
