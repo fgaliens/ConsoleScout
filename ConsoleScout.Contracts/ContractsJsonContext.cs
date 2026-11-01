@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace ConsoleScout.Contracts;
 
-/// <summary>Source-generated, so the AOT-compiled CLI and the scraper serialize the wire format identically.</summary>
+/// <summary>Source-generated, so the AOT-compiled CLI and the agent serialize the wire format identically.</summary>
 [JsonSourceGenerationOptions(
     JsonSerializerDefaults.Web,
     UseStringEnumConverter = true,
@@ -14,6 +14,6 @@ namespace ConsoleScout.Contracts;
 [JsonSerializable(typeof(FetchBatchResponse))]
 [JsonSerializable(typeof(SearchRequest))]
 [JsonSerializable(typeof(SearchResponse))]
-[JsonSerializable(typeof(ScraperError))]
-[JsonSerializable(typeof(ScraperEndpoint))]
+[JsonSerializable(typeof(AgentError))]
+[JsonSerializable(typeof(AgentEndpoint))]
 public sealed partial class ContractsJsonContext : JsonSerializerContext;

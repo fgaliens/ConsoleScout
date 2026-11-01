@@ -1,18 +1,18 @@
 using System.Text;
 using ConsoleScout.Configuration;
-using ConsoleScout.Scraper;
+using ConsoleScout.Agent;
 
 namespace ConsoleScout.App;
 
 /// <summary>What --status and the usage guide report about this machine: whether the configuration loads,
-/// which model keys are set and whether the scraper is running. Checks only - nothing is started or written.</summary>
+/// which model keys are set and whether the agent is running. Checks only - nothing is started or written.</summary>
 /// <param name="CanAnswer">False when a question would fail before reaching the model: a broken configuration
 /// or a missing key. The guide then does not ask for one.</param>
 internal sealed record SetupStatus(string Markdown, bool CanAnswer)
 {
-    /// <param name="probeScraper">False skips asking the scraper whether it runs, which can take a moment;
+    /// <param name="probeAgent">False skips asking the agent whether it runs, which can take a moment;
     /// <see cref="CanAnswer"/> does not depend on it.</param>
-    public static async Task<SetupStatus> CheckAsync(bool probeScraper = true)
+    public static async Task<SetupStatus> CheckAsync(bool probeAgent = true)
     {
         var builder = new StringBuilder("## Status\n\n");
 
@@ -55,9 +55,9 @@ internal sealed record SetupStatus(string Markdown, bool CanAnswer)
             builder.Append("- ○ **Summarizer model**: configured but not used, page condensing is off.\n");
         }
 
-        if (probeScraper)
+        if (probeAgent)
         {
-            await AppendScraperAsync(builder, settings);
+            await AppendAgentAsync(builder, settings);
         }
 
         if (missing > 0)
@@ -84,26 +84,26 @@ internal sealed record SetupStatus(string Markdown, bool CanAnswer)
         return false;
     }
 
-    private static async Task AppendScraperAsync(StringBuilder builder, AppSettings settings)
+    private static async Task AppendAgentAsync(StringBuilder builder, AppSettings settings)
     {
-        if (!settings.UsesScraper())
+        if (!settings.UsesAgent())
         {
-            builder.Append("- ○ **Scraper**: not needed, the web tools are turned off.\n");
+            builder.Append("- ○ **Agent**: not needed, the web tools are turned off.\n");
             return;
         }
 
-        using var launcher = new ScraperLauncher(settings.Scraper);
+        using var launcher = new AgentLauncher(settings.Agent);
         var running = await launcher.FindRunningAsync();
         if (running is not null)
         {
-            builder.Append("- ✓ **Scraper** is running at ").Append(running.Url).Append(" (pid ").Append(running.Pid).Append(").\n");
+            builder.Append("- ✓ **Agent** is running at ").Append(running.Url).Append(" (pid ").Append(running.Pid).Append(").\n");
             return;
         }
 
-        var hint = settings.Scraper.AutoStart
+        var hint = settings.Agent.AutoStart
             ? "it starts by itself on the first question that needs the web, or now with `csc -r`"
-            : "start it with `csc -r` (Scraper:AutoStart is off)";
-        builder.Append("- ○ **Scraper** is not running: ").Append(hint).Append(".\n");
+            : "start it with `csc -r` (Agent:AutoStart is off)";
+        builder.Append("- ○ **Agent** is not running: ").Append(hint).Append(".\n");
     }
 
     private static string Title(string model) => char.ToUpperInvariant(model[0]) + model[1..];

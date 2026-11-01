@@ -10,7 +10,7 @@ internal sealed class GuideCommand(IConsoleUi ui)
     /// <returns>The question the user typed, or null when there is none to answer.</returns>
     public async Task<string?> RunAsync()
     {
-        var readiness = await SetupStatus.CheckAsync(probeScraper: false);
+        var readiness = await SetupStatus.CheckAsync(probeAgent: false);
         if (readiness.CanAnswer && ui.CanAsk)
         {
             var question = ui.AskQuestion();

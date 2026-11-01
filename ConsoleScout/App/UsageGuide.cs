@@ -10,7 +10,7 @@ internal static class UsageGuide
     private static readonly string[] Sections = ["Quick start", "Usage"];
 
     private const string Footer =
-        "Configuration, models, the scraper and publishing: `csc --readme`. Setup state: `csc --status`.";
+        "Configuration, models, the agent and publishing: `csc --readme`. Setup state: `csc --status`.";
 
     /// <summary>The introduction, quick start and usage, with a pointer to the rest.</summary>
     public static string Load()

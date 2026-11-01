@@ -11,17 +11,17 @@ internal static class ConfigurationLoader
 {
     private const string EnvironmentPrefix = "CONSOLESCOUT_";
 
-    /// <summary>The scraper's own variables. The scraper inherits this process's environment when started
+    /// <summary>The agent's own variables. The agent inherits this process's environment when started
     /// from here, so they are set alongside the CLI's - and would otherwise be read as unknown CLI settings.</summary>
-    private const string ScraperEnvironmentPrefix = "CONSOLESCOUT_SCRAPER_";
+    private const string AgentEnvironmentPrefix = "CONSOLESCOUT_AGENT_";
 
     /// <summary>secrets.json in the user profile, alongside how git keeps its own credentials.
     /// Same shape as appsettings.json, holding only the keys.</summary>
-    public static string SecretsPath { get; } = Path.Combine(ScraperDiscovery.DataDirectory, "secrets.json");
+    public static string SecretsPath { get; } = Path.Combine(AgentDiscovery.DataDirectory, "secrets.json");
 
     /// <summary>preferences.json next to secrets.json: choices made from the command line, such as --no-donate.
     /// Same shape as appsettings.json.</summary>
-    public static string PreferencesPath { get; } = Path.Combine(ScraperDiscovery.DataDirectory, "preferences.json");
+    public static string PreferencesPath { get; } = Path.Combine(AgentDiscovery.DataDirectory, "preferences.json");
 
     // AppContext.BaseDirectory resolves next to the executable under both dotnet run and a published build.
     private static string SettingsPath { get; } = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
@@ -56,8 +56,8 @@ internal static class ConfigurationLoader
         }
     }
 
-    /// <summary>What AddEnvironmentVariables(prefix) would produce, minus the scraper's variables.
-    /// CONSOLESCOUT_SCRAPER__X (double underscore) is still the CLI's own Scraper:X.</summary>
+    /// <summary>What AddEnvironmentVariables(prefix) would produce, minus the agent's variables.
+    /// CONSOLESCOUT_AGENT__X (double underscore) is still the CLI's own Agent:X.</summary>
     private static IEnumerable<KeyValuePair<string, string?>> EnvironmentSettings()
     {
         foreach (System.Collections.DictionaryEntry variable in Environment.GetEnvironmentVariables())
@@ -68,8 +68,8 @@ internal static class ConfigurationLoader
                 continue;
             }
 
-            if (name.StartsWith(ScraperEnvironmentPrefix, StringComparison.OrdinalIgnoreCase)
-                && !name.StartsWith(ScraperEnvironmentPrefix + "_", StringComparison.OrdinalIgnoreCase))
+            if (name.StartsWith(AgentEnvironmentPrefix, StringComparison.OrdinalIgnoreCase)
+                && !name.StartsWith(AgentEnvironmentPrefix + "_", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }

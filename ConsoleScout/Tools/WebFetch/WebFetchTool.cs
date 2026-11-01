@@ -4,17 +4,17 @@ using ConsoleScout.AI;
 using ConsoleScout.Configuration;
 using ConsoleScout.Contracts;
 using ConsoleScout.Output;
-using ConsoleScout.Scraper;
+using ConsoleScout.Agent;
 
 namespace ConsoleScout.Tools.WebFetch;
 
-/// <summary>web_fetch: reads one or several pages as text through the scraper, which loads them in parallel
+/// <summary>web_fetch: reads one or several pages as text through the agent, which loads them in parallel
 /// and renders each in a browser when plain HTTP is not enough. All pages come back in one tool result,
 /// each under its URL; a page that cannot be read is reported in its place
 /// without failing the others. With a <paramref name="condenser"/>, each page is first reduced by the
 /// summarizer model to what bears on the question.</summary>
 internal sealed class WebFetchTool(
-    ScraperClient scraper,
+    AgentClient agent,
     WebFetchSettings settings,
     IActivityReporter activity,
     PageCondenser? condenser) : IAssistantTool
@@ -115,7 +115,7 @@ internal sealed class WebFetchTool(
         return builder.ToString();
     }
 
-    /// <returns>The scraper's outcome for each valid URL, by URL.</returns>
+    /// <returns>The agent's outcome for each valid URL, by URL.</returns>
     private async Task<Dictionary<string, FetchBatchItem>> FetchAsync(List<string> urls, int pageChars, CancellationToken ct)
     {
         if (urls.Count == 0)
@@ -129,13 +129,13 @@ internal sealed class WebFetchTool(
         FetchBatchResponse response;
         try
         {
-            response = await scraper.FetchBatchAsync(request, ct);
+            response = await agent.FetchBatchAsync(request, ct);
         }
-        catch (ScraperException ex)
+        catch (AgentException ex)
         {
             throw new ToolException($"the pages could not be read: {ex.Message}");
         }
-        catch (ScraperUnavailableException ex)
+        catch (AgentUnavailableException ex)
         {
             throw new ToolException(ex.Message);
         }

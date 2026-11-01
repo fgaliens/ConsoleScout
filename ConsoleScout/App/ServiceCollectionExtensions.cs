@@ -1,7 +1,7 @@
 using ConsoleScout.AI;
 using ConsoleScout.Configuration;
 using ConsoleScout.Output;
-using ConsoleScout.Scraper;
+using ConsoleScout.Agent;
 using ConsoleScout.Tools;
 using ConsoleScout.Tools.WebFetch;
 using ConsoleScout.Tools.WebSearch;
@@ -11,12 +11,12 @@ using Microsoft.Extensions.DependencyInjection;
 namespace ConsoleScout.App;
 
 /// <summary>The composition root, one method per area. A disabled feature is simply not registered,
-/// so nothing it would need (a key, the scraper) is ever resolved.</summary>
+/// so nothing it would need (a key, the agent) is ever resolved.</summary>
 internal static class ServiceCollectionExtensions
 {
-    /// <summary>Engines the scraper can read. A provider with its own API gets its own registration
+    /// <summary>Engines the agent can read. A provider with its own API gets its own registration
     /// in <see cref="AddWebSearch"/> instead.</summary>
-    private static readonly string[] ScraperEngines = ["google", "duckduckgo"];
+    private static readonly string[] AgentEngines = ["google", "duckduckgo"];
 
     private const string MainModel = "main";
     private const string SummarizerModel = "summarizer";
@@ -37,7 +37,7 @@ internal static class ServiceCollectionExtensions
             .AddAssistant(settings)
             .AddSingleton<AskCommand>()
             .AddSingleton<SetKeyCommand>()
-            .AddSingleton<RunScraperCommand>()
+            .AddSingleton<RunAgentCommand>()
             .AddSingleton<GuideCommand>()
             .AddSingleton<StatusCommand>()
             .AddSingleton<ReadmeCommand>()
@@ -45,8 +45,8 @@ internal static class ServiceCollectionExtensions
             .AddSingleton<NoDonateCommand>();
     }
 
-    /// <summary>True when some registered tool goes through the scraper, so it is worth starting early.</summary>
-    public static bool UsesScraper(this AppSettings settings) =>
+    /// <summary>True when some registered tool goes through the agent, so it is worth starting early.</summary>
+    public static bool UsesAgent(this AppSettings settings) =>
         settings.Tools.WebSearch.Enabled || settings.Tools.WebFetch.Enabled;
 
     private static IServiceCollection AddOutput(this IServiceCollection services, AppSettings settings)
@@ -80,10 +80,10 @@ internal static class ServiceCollectionExtensions
             return new ToolInvoker(tools);
         });
 
-        // Always registered, for --run-scraper; nothing is started until something asks for it.
-        services.AddSingleton(settings.Scraper);
-        services.AddSingleton<ScraperLauncher>();
-        services.AddSingleton<ScraperClient>();
+        // Always registered, for --run-agent; nothing is started until something asks for it.
+        services.AddSingleton(settings.Agent);
+        services.AddSingleton<AgentLauncher>();
+        services.AddSingleton<AgentClient>();
 
         if (settings.Tools.WebSearch.Enabled)
         {
@@ -100,10 +100,10 @@ internal static class ServiceCollectionExtensions
 
             services.AddSingleton<IAssistantTool>(provider =>
             {
-                var scraper = provider.GetRequiredService<ScraperClient>();
+                var agent = provider.GetRequiredService<AgentClient>();
                 var activity = provider.GetRequiredService<IActivityReporter>();
                 var condenser = provider.GetService<PageCondenser>();
-                return new WebFetchTool(scraper, settings.Tools.WebFetch, activity, condenser);
+                return new WebFetchTool(agent, settings.Tools.WebFetch, activity, condenser);
             });
         }
 
@@ -132,23 +132,23 @@ internal static class ServiceCollectionExtensions
 
     private static void AddWebSearch(this IServiceCollection services, WebSearchSettings settings)
     {
-        foreach (var engine in ScraperEngines)
+        foreach (var engine in AgentEngines)
         {
             services.AddKeyedSingleton<ISearchProvider>(engine, (provider, _) =>
             {
-                var scraper = provider.GetRequiredService<ScraperClient>();
-                return new ScraperSearchProvider(scraper, engine);
+                var agent = provider.GetRequiredService<AgentClient>();
+                return new AgentSearchProvider(agent, engine);
             });
         }
 
         // Validated here rather than on first search, so a typo fails before the question is asked.
         var configured = settings.GetProviders();
-        var unknown = configured.Where(name => !ScraperEngines.Contains(name, StringComparer.OrdinalIgnoreCase)).ToList();
+        var unknown = configured.Where(name => !AgentEngines.Contains(name, StringComparer.OrdinalIgnoreCase)).ToList();
         if (unknown.Count > 0)
         {
             throw new ConfigurationException(
                 $"Unknown search provider(s) in Tools:WebSearch:Providers: {string.Join(", ", unknown)}. "
-                + $"Available: {string.Join(", ", ScraperEngines)}.");
+                + $"Available: {string.Join(", ", AgentEngines)}.");
         }
 
         services.AddSingleton<IAssistantTool>(provider =>

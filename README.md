@@ -14,7 +14,7 @@ commands for your shell come out right.
 ## Quick start
 
 Requirements: the [.NET 10 SDK](https://dotnet.microsoft.com/download) to build, and Google Chrome for
-web access (without it, Chromium is downloaded on first use; see [Scraper](#scraper)).
+web access (without it, Chromium is downloaded on first use; see [Agent](#agent)).
 
 ```
 dotnet build
@@ -34,18 +34,18 @@ OpenAI-compatible chat API works.
 | Command | What it does |
 | --- | --- |
 | `csc` | Asks for a question. While a model key is missing, shows this guide and the setup status instead. |
-| `csc --status` | The setup state: configuration, model keys, scraper. Exit code 1 while a question cannot be answered. |
+| `csc --status` | The setup state: configuration, model keys, agent. Exit code 1 while a question cannot be answered. |
 | `csc --readme` | This documentation in full. |
 | `csc <question>` | Answers the question. |
 | `csc -l <question>`, `--long` | A detailed answer. |
 | `csc -s <question>`, `--short` | The shortest answer. Default length: `preferences.answerLength`. |
 | `csc -k main`, `--set-key main` | Saves a model's API key to `~/.consolescout/secrets.json`; asks for it without echoing. `-k main=<key>` takes it from the argument. Models: `main`, `summarizer`. Repeatable. |
-| `csc -r`, `--run-scraper` | Starts the scraper and waits until its browser is ready. Also the setup step on a new machine. |
+| `csc -r`, `--run-agent` | Starts the agent and waits until its browser is ready. Also the setup step on a new machine. |
 | `csc --donate` | Lists the networks you can donate on. |
 | `csc --donate eth` | Shows that network's address and QR code. Networks by ticker: `btc`, `eth`, `usdt`, `ton`, `sol`. |
 | `csc --no-donate` | Stops showing the donation hint while the model thinks. |
 
-A question, `--set-key`, `--run-scraper`, `--donate`, `--no-donate`, `--status` and `--readme` cannot be combined.
+A question, `--set-key`, `--run-agent`, `--donate`, `--no-donate`, `--status` and `--readme` cannot be combined.
 
 > **zsh and `?`:** zsh treats `?` and `*` in arguments as file patterns and stops with
 > `zsh: no matches found` before the program even starts. Add `alias csc='noglob csc'` to `~/.zshrc`,
@@ -103,7 +103,7 @@ silently ignored.
     "webFetch":  { "enabled": true, "maxChars": 8000, "maxBatchSize": 5, "maxBatchChars": 24000,
                    "condense": true, "condensedMaxWords": 250 }
   },
-  "scraper": { "autoStart": true, "startupTimeoutSeconds": 30, "requestTimeoutSeconds": 60 },
+  "agent": { "autoStart": true, "startupTimeoutSeconds": 30, "requestTimeoutSeconds": 60 },
   "output": { "format": "markdown" },
   "preferences": { "answerLength": "short", "showDonateHint": true }
 }
@@ -112,55 +112,55 @@ silently ignored.
 `output.format` is `markdown` (rendered in the console) or `plain`. `flattenContentArrays: true` on a
 model fixes providers that return `message.content` as an array of chunks.
 
-## Scraper
+## Agent
 
-Web access goes through **ConsoleScout.Scraper**, a separate local service that drives a real browser
+Web access goes through **ConsoleScout.Agent**, a separate local service that drives a real browser
 with Playwright. It is a separate process because Playwright cannot be compiled with NativeAOT, which
 the CLI uses to start instantly; it also keeps the browser warm between questions.
 
 - **Starts on demand.** The CLI starts it when a question needs the web and it is not running, and it
-  stops itself after `Scraper:IdleMinutes` (60 minutes in the shipped settings) without requests. `csc -r` starts it explicitly.
-- **Browser.** Installed Google Chrome by default (`Scraper:Browser:Channel`). If Chrome is missing,
+  stops itself after `Agent:IdleMinutes` (60 minutes in the shipped settings) without requests. `csc -r` starts it explicitly.
+- **Browser.** Installed Google Chrome by default (`Agent:Browser:Channel`). If Chrome is missing,
   Chromium is downloaded on first use; `csc -r` is a good moment for that. Playwright 1.63 no longer
   ships Chromium for macOS 13, so there Chrome is required.
 - **Google** answers headless browsers with a CAPTCHA more often than not; the search then falls through
-  to DuckDuckGo. Running `ConsoleScout.Scraper --setup` opens a visible window on the scraper's browser
-  profile to accept cookies or pass a check by hand; it needs the scraper to be stopped first. CAPTCHAs
+  to DuckDuckGo. Running `ConsoleScout.Agent --setup` opens a visible window on the agent's browser
+  profile to accept cookies or pass a check by hand; it needs the agent to be stopped first. CAPTCHAs
   are never worked around automatically.
 - **Security.** The service listens on `127.0.0.1` only, on a random port announced in
-  `~/.consolescout/scraper.json` (0600) together with a per-start token that every request must carry. It
+  `~/.consolescout/agent.json` (0600) together with a per-start token that every request must carry. It
   also checks the `Host` header against DNS rebinding, and refuses to fetch loopback and private-network
-  addresses (`Scraper:Fetch:AllowPrivateNetworks`).
-- **Its own settings** are in `ConsoleScout.Scraper/appsettings.json`, overridable with variables prefixed
-  `CONSOLESCOUT_SCRAPER_` (e.g. `CONSOLESCOUT_SCRAPER_Scraper__Browser__Headless=false`). Its log is
-  `~/.consolescout/scraper.log`.
+  addresses (`Agent:Fetch:AllowPrivateNetworks`).
+- **Its own settings** are in `ConsoleScout.Agent/appsettings.json`, overridable with variables prefixed
+  `CONSOLESCOUT_AGENT_` (e.g. `CONSOLESCOUT_AGENT_Agent__Browser__Headless=false`). Its log is
+  `~/.consolescout/agent.log`.
 
 ## Building and publishing
 
 ```
-dotnet build ConsoleScout.slnx                          # Debug: finds the scraper in its own build output
-dotnet publish ConsoleScout -c Release -o out           # native CLI + self-contained scraper/ + csc
+dotnet build ConsoleScout.slnx                          # Debug: finds the agent in its own build output
+dotnet publish ConsoleScout -c Release -o out           # native CLI + self-contained agent/ + csc
 ```
 
 The published folder needs no .NET runtime: `ConsoleScout` (about 12 MB, NativeAOT), the `csc` alias,
-`appsettings.json`, and `scraper/` (self-contained, with Playwright's driver). On macOS the first start of
-a freshly published scraper can take up to a minute while the system checks its files; `csc -r` waits for
+`appsettings.json`, and `agent/` (self-contained, with Playwright's driver). On macOS the first start of
+a freshly published agent can take up to a minute while the system checks its files; `csc -r` waits for
 that.
 
 ## Project layout
 
 | Project | Contents |
 | --- | --- |
-| `ConsoleScout` | The CLI (NativeAOT): `App/` commands and DI, `AI/` the assistant loop, prompt, model clients and page condenser, `Tools/` the tools offered to the model, `Scraper/` the client for the service, `Configuration/`, `Output/` everything shown in the console, `Donate/`. |
-| `ConsoleScout.Scraper` | The local web service: Playwright browser host, page fetching and text extraction, search engines. |
+| `ConsoleScout` | The CLI (NativeAOT): `App/` commands and DI, `AI/` the assistant loop, prompt, model clients and page condenser, `Tools/` the tools offered to the model, `Agent/` the client for the service, `Configuration/`, `Output/` everything shown in the console, `Donate/`. |
+| `ConsoleScout.Agent` | The local web service: Playwright browser host, page fetching and text extraction, search engines. |
 | `ConsoleScout.Contracts` | Request and response types shared by both, with source-generated JSON. |
 
 **Adding a tool:** implement `IAssistantTool` (name, description, JSON schema, prompt guidance, invoke)
 and register it in `App/ServiceCollectionExtensions.cs`. The assistant loop and the system prompt pick it
 up from the registrations.
 
-**Adding a search engine:** implement `ISearchEngine` in the scraper and register it in its `Program.cs`;
-then add its name to `ScraperEngines` in the CLI's `App/ServiceCollectionExtensions.cs`. An engine with
+**Adding a search engine:** implement `ISearchEngine` in the agent and register it in its `Program.cs`;
+then add its name to `AgentEngines` in the CLI's `App/ServiceCollectionExtensions.cs`. An engine with
 its own API can instead implement `ISearchProvider` in the CLI directly.
 
 ## Code style

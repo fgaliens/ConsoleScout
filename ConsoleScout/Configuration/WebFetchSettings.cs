@@ -7,7 +7,7 @@ internal sealed class WebFetchSettings
     /// <summary>Longer pages are cut off; the model is told so.</summary>
     public int MaxChars { get; set; } = 8000;
 
-    /// <summary>The most URLs the model may pass in one web_fetch call. The scraper accepts up to 10.</summary>
+    /// <summary>The most URLs the model may pass in one web_fetch call. The agent accepts up to 10.</summary>
     public int MaxBatchSize { get; set; } = 5;
 
     /// <summary>Text budget for one call, shared by its pages: each gets an equal part, capped at

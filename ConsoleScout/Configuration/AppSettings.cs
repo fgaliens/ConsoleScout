@@ -10,7 +10,7 @@ internal sealed class AppSettings
 
     public ToolsSettings Tools { get; set; } = new();
 
-    public ScraperSettings Scraper { get; set; } = new();
+    public AgentSettings Agent { get; set; } = new();
 
     public OutputSettings Output { get; set; } = new();
 

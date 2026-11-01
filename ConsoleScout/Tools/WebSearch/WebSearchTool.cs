@@ -3,7 +3,7 @@ using System.Text.Json;
 using ConsoleScout.Configuration;
 using ConsoleScout.Contracts;
 using ConsoleScout.Output;
-using ConsoleScout.Scraper;
+using ConsoleScout.Agent;
 
 namespace ConsoleScout.Tools.WebSearch;
 
@@ -66,7 +66,7 @@ internal sealed class WebSearchTool(
                 var hits = await provider.SearchAsync(query, settings.MaxResults, ct);
                 return Render(hits);
             }
-            catch (ScraperException ex)
+            catch (AgentException ex)
             {
                 if (ex.IsBlocked)
                 {
@@ -75,9 +75,9 @@ internal sealed class WebSearchTool(
 
                 failures.Add($"{provider.Name}: {ex.Message}");
             }
-            catch (ScraperUnavailableException ex)
+            catch (AgentUnavailableException ex)
             {
-                // Every provider goes through the same scraper, so there is nobody else to ask.
+                // Every provider goes through the same agent, so there is nobody else to ask.
                 throw new ToolException(ex.Message);
             }
         }

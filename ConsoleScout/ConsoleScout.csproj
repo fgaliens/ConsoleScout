@@ -18,13 +18,13 @@
 
   <ItemGroup>
     <ProjectReference Include="../ConsoleScout.Contracts/ConsoleScout.Contracts.csproj" />
-    <!-- Build order only: the scraper is a separate process, never loaded into this one. -->
-    <ProjectReference Include="../ConsoleScout.Scraper/ConsoleScout.Scraper.csproj" ReferenceOutputAssembly="false" Private="false" SkipGetTargetFrameworkProperties="true" GlobalPropertiesToRemove="RuntimeIdentifier;SelfContained;PublishAot" />
+    <!-- Build order only: the agent is a separate process, never loaded into this one. -->
+    <ProjectReference Include="../ConsoleScout.Agent/ConsoleScout.Agent.csproj" ReferenceOutputAssembly="false" Private="false" SkipGetTargetFrameworkProperties="true" GlobalPropertiesToRemove="RuntimeIdentifier;SelfContained;PublishAot" />
   </ItemGroup>
 
-  <!-- Lets a Debug build find the scraper's own output, so dotnet run needs no Scraper:ExecutablePath. -->
+  <!-- Lets a Debug build find the agent's own output, so dotnet run needs no Agent:ExecutablePath. -->
   <ItemGroup Condition="'$(Configuration)' == 'Debug'">
-    <AssemblyMetadata Include="ScraperDevelopmentOutput" Value="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../ConsoleScout.Scraper/bin/$(Configuration)/$(TargetFramework)/'))" />
+    <AssemblyMetadata Include="AgentDevelopmentOutput" Value="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../ConsoleScout.Agent/bin/$(Configuration)/$(TargetFramework)/'))" />
   </ItemGroup>
 
   <ItemGroup>
@@ -38,12 +38,12 @@
     <PackageReference Include="System.CommandLine" Version="2.0.12" />
   </ItemGroup>
 
-  <!-- dotnet publish also publishes the scraper, self-contained, into scraper/ next to the CLI, where
-       ScraperLauncher looks for it. Self-contained, because the CLI needs no .NET runtime either. -->
-  <Target Name="PublishScraper" AfterTargets="Publish">
-    <!-- A separate dotnet publish rather than an MSBuild task: the scraper has to be restored for this
+  <!-- dotnet publish also publishes the agent, self-contained, into agent/ next to the CLI, where
+       AgentLauncher looks for it. Self-contained, because the CLI needs no .NET runtime either. -->
+  <Target Name="PublishAgent" AfterTargets="Publish">
+    <!-- A separate dotnet publish rather than an MSBuild task: the agent has to be restored for this
          runtime identifier first, which needs an evaluation of its own. -->
-    <Exec Command="&quot;$(DOTNET_HOST_PATH)&quot; publish &quot;$(MSBuildThisFileDirectory)../ConsoleScout.Scraper/ConsoleScout.Scraper.csproj&quot; -c $(Configuration) -r $(RuntimeIdentifier) --self-contained -nologo -o &quot;$([System.IO.Path]::GetFullPath('$(PublishDir)'))scraper&quot;" />
+    <Exec Command="&quot;$(DOTNET_HOST_PATH)&quot; publish &quot;$(MSBuildThisFileDirectory)../ConsoleScout.Agent/ConsoleScout.Agent.csproj&quot; -c $(Configuration) -r $(RuntimeIdentifier) --self-contained -nologo -o &quot;$([System.IO.Path]::GetFullPath('$(PublishDir)'))agent&quot;" />
   </Target>
 
   <!-- A short alias next to the executable: a symlink on macOS and Linux, a .cmd shim on Windows.

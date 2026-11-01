@@ -2,7 +2,7 @@ using System.Text;
 using ConsoleScout.AI;
 using ConsoleScout.Configuration;
 using ConsoleScout.Output;
-using ConsoleScout.Scraper;
+using ConsoleScout.Agent;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -72,9 +72,9 @@ internal static class ConsoleScoutApp
                 return 0;
             }
 
-            if (options.RunScraper)
+            if (options.RunAgent)
             {
-                await provider.GetRequiredService<RunScraperCommand>().RunAsync(ct);
+                await provider.GetRequiredService<RunAgentCommand>().RunAsync(ct);
                 return 0;
             }
 
@@ -85,23 +85,23 @@ internal static class ConsoleScoutApp
             }
 
             // The browser takes seconds to start; it can do so while the model thinks.
-            if (settings.UsesScraper())
+            if (settings.UsesAgent())
             {
-                provider.GetRequiredService<ScraperLauncher>().StartInBackground();
+                provider.GetRequiredService<AgentLauncher>().StartInBackground();
             }
 
             var length = options.Length ?? settings.Preferences.AnswerLength;
             await provider.GetRequiredService<AskCommand>().RunAsync(question, length, ct);
             return 0;
         }
-        catch (Exception ex) when (ex is ConfigurationException or AiException or ScraperUnavailableException or InputUnavailableException)
+        catch (Exception ex) when (ex is ConfigurationException or AiException or AgentUnavailableException or InputUnavailableException)
         {
             ErrorConsole.Write(ex.Message);
             return 1;
         }
-        catch (ScraperException ex)
+        catch (AgentException ex)
         {
-            ErrorConsole.Write($"The scraper failed: {ex.Message}");
+            ErrorConsole.Write($"The agent failed: {ex.Message}");
             return 1;
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)

@@ -26,9 +26,9 @@ var setKeyOption = new Option<string[]>(name: "--set-key", aliases: ["-k"])
     HelpName = "model[=key]",
 };
 
-var runScraperOption = new Option<bool>(name: "--run-scraper", aliases: ["-r"])
+var runAgentOption = new Option<bool>(name: "--run-agent", aliases: ["-r"])
 {
-    Description = "Start the scraper and wait until its browser is ready (downloads Chromium on first use if needed)",
+    Description = "Start the agent and wait until its browser is ready (downloads Chromium on first use if needed)",
 };
 
 var donateOption = new Option<string?>(name: "--donate")
@@ -45,7 +45,7 @@ var noDonateOption = new Option<bool>(name: "--no-donate")
 
 var statusOption = new Option<bool>(name: "--status")
 {
-    Description = "Show the setup state: configuration, model keys and the scraper",
+    Description = "Show the setup state: configuration, model keys and the agent",
 };
 
 var readmeOption = new Option<bool>(name: "--readme")
@@ -59,7 +59,7 @@ var rootCommand = new RootCommand("Console Scout")
     longAnswerOption,
     shortAnswerOption,
     setKeyOption,
-    runScraperOption,
+    runAgentOption,
     donateOption,
     noDonateOption,
     statusOption,
@@ -80,7 +80,7 @@ rootCommand.Validators.Add(result =>
     {
         (result.GetValue(questionArgument) ?? []).Length > 0,
         (result.GetValue(setKeyOption) ?? []).Length > 0,
-        result.GetValue(runScraperOption),
+        result.GetValue(runAgentOption),
         result.GetResult(donateOption) is not null,
         result.GetValue(noDonateOption),
         result.GetValue(statusOption),
@@ -88,7 +88,7 @@ rootCommand.Validators.Add(result =>
     };
     if (actions.Count(given => given) > 1)
     {
-        result.AddError("A question and the options --set-key, --run-scraper, --donate, --no-donate, --status and --readme "
+        result.AddError("A question and the options --set-key, --run-agent, --donate, --no-donate, --status and --readme "
             + "cannot be combined; give one of them.");
     }
 });
@@ -106,7 +106,7 @@ rootCommand.SetAction((parseResult, ct) =>
             Question: words.Length > 0 ? string.Join(' ', words) : null,
             Length: length,
             SetKeys: parseResult.GetValue(setKeyOption) ?? [],
-            RunScraper: parseResult.GetValue(runScraperOption),
+            RunAgent: parseResult.GetValue(runAgentOption),
             Donate: parseResult.GetResult(donateOption) is not null,
             DonateNetwork: parseResult.GetValue(donateOption),
             NoDonate: parseResult.GetValue(noDonateOption),
