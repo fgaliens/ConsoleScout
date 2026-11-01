@@ -54,10 +54,21 @@ var readmeOption = new Option<bool>(name: "--readme")
 };
 
 // -c is a plain flag; a reference after it (x42, n3) is moved to the hidden option by ContextArguments.
-var contextOption = new Option<bool>(name: "--with-context", aliases: ["-c"])
+var contextOption = new Option<bool>(name: "--with-context", aliases: ["-c", "--continue"])
 {
     Description = "Follow up on an earlier answer: -c the last one in this terminal; -c n<N> the one N before it; "
-        + "-c x<id> answer <id> from any terminal",
+        + "-c x<id> answer <id>, -c d<id> the latest answer of dialog <id>, from any terminal",
+};
+
+var dialogOption = new Option<bool>(name: "--dialog", aliases: ["-d"])
+{
+    Description = "Dialog mode in this terminal: each question continues the conversation. Alone it turns the mode "
+        + "on or off; with -c it turns it on for that conversation; with a question it turns it on and asks",
+};
+
+var newDialogOption = new Option<bool>(name: "--new", aliases: ["-n"])
+{
+    Description = "Start a new dialog with this question, even in dialog mode",
 };
 
 var contextReferenceOption = new Option<string?>(name: ContextArguments.ReferenceOption)
@@ -78,6 +89,8 @@ var rootCommand = new RootCommand("Console Scout")
     readmeOption,
     contextOption,
     contextReferenceOption,
+    dialogOption,
+    newDialogOption,
 };
 
 HelpLayout.Apply(rootCommand);
@@ -106,11 +119,17 @@ rootCommand.Validators.Add(result =>
             + "cannot be combined; give one of them.");
     }
 
-    // -c goes with a question, or alone: the question is then asked for.
+    // -c, -d and -n go with a question, or alone: the question is then asked for (-c, -n) or the mode changed (-d).
     var otherActions = actions.Skip(1).Count(given => given);
-    if (result.GetValue(contextOption) && otherActions > 0)
+    var conversation = result.GetValue(contextOption) || result.GetValue(dialogOption) || result.GetValue(newDialogOption);
+    if (conversation && otherActions > 0)
     {
-        result.AddError("-c (--with-context) goes with a question only.");
+        result.AddError("-c, -d and -n go with a question only.");
+    }
+
+    if (result.GetValue(newDialogOption) && (result.GetValue(contextOption) || result.GetValue(dialogOption)))
+    {
+        result.AddError("-n starts a new dialog, so it cannot be combined with -c or -d.");
     }
 });
 
@@ -138,7 +157,9 @@ rootCommand.SetAction((parseResult, ct) =>
             NoDonate: parseResult.GetValue(noDonateOption),
             Status: parseResult.GetValue(statusOption),
             Readme: parseResult.GetValue(readmeOption),
-            Context: context),
+            Context: context,
+            Dialog: parseResult.GetValue(dialogOption),
+            NewDialog: parseResult.GetValue(newDialogOption)),
         ct);
 });
 

@@ -1,5 +1,6 @@
 using System.Text;
 using ConsoleScout.Configuration;
+using ConsoleScout.Contracts;
 using ConsoleScout.Agent;
 using ConsoleScout.Session;
 
@@ -84,6 +85,30 @@ internal sealed record SetupStatus(string Markdown, bool CanAnswer)
         builder.Append("- ○ **User files** in ").Append(directory).Append(": ").Append(list).Append(".\n");
     }
 
+    /// <summary>Asked only of a running agent: --status never starts one.</summary>
+    private static async Task AppendDialogModeAsync(StringBuilder builder, AgentLauncher launcher, AppSettings settings)
+    {
+        if (!settings.History.Enabled)
+        {
+            return;
+        }
+
+        using var client = new AgentClient(launcher, settings.Agent);
+        var request = new HistoryContextRequest(TerminalSession.Id, null, false, 1);
+        try
+        {
+            var context = await client.ResolveContextAsync(request, CancellationToken.None);
+            var state = context.DialogMode
+                ? "on in this terminal (`csc -d` turns it off)"
+                : "off in this terminal (`csc -d` turns it on)";
+            builder.Append("- ○ **Dialog mode** is ").Append(state).Append(".\n");
+        }
+        catch (Exception ex) when (ex is AgentException or AgentUnavailableException)
+        {
+            builder.Append("- ○ **Dialog mode** is unknown: ").Append(ex.Message).Append('\n');
+        }
+    }
+
     private static void AppendSession(StringBuilder builder, AppSettings settings)
     {
         if (!settings.History.Enabled)
@@ -130,6 +155,7 @@ internal sealed record SetupStatus(string Markdown, bool CanAnswer)
         if (running is not null)
         {
             builder.Append("- ✓ **Agent** is running at ").Append(running.Url).Append(" (pid ").Append(running.Pid).Append(").\n");
+            await AppendDialogModeAsync(builder, launcher, settings);
             return;
         }
 

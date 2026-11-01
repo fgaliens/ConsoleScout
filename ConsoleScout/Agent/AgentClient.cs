@@ -32,21 +32,26 @@ internal sealed class AgentClient(AgentLauncher launcher, AgentSettings settings
         return SendAsync("/fetch/batch", content, ContractsJsonContext.Default.FetchBatchResponse, RequestTimeout, ct);
     }
 
-    /// <returns>The id of the saved entry.</returns>
-    public async Task<long> AppendHistoryAsync(AppendHistoryRequest request, CancellationToken ct)
+    /// <returns>The saved answer's id and its dialog's.</returns>
+    public Task<AppendHistoryResponse> AppendHistoryAsync(AppendHistoryRequest request, CancellationToken ct)
     {
         var content = Json(request, ContractsJsonContext.Default.AppendHistoryRequest);
-        var response = await SendAsync("/history", content, ContractsJsonContext.Default.AppendHistoryResponse, RequestTimeout, ct);
-        return response.Id;
+        return SendAsync("/history", content, ContractsJsonContext.Default.AppendHistoryResponse, RequestTimeout, ct);
     }
 
-    /// <summary>The referenced entry and the ones it followed up on, oldest first.</summary>
-    /// <exception cref="AgentException">With code not_found when there is no such entry.</exception>
-    public async Task<IReadOnlyList<HistoryEntry>> GetHistoryThreadAsync(HistoryThreadRequest request, CancellationToken ct)
+    /// <summary>What the next question follows up on, and whether dialog mode is on; decided by the agent.</summary>
+    /// <exception cref="AgentException">With code not_found when an explicit reference matches nothing.</exception>
+    public Task<HistoryContextResponse> ResolveContextAsync(HistoryContextRequest request, CancellationToken ct)
     {
-        var content = Json(request, ContractsJsonContext.Default.HistoryThreadRequest);
-        var response = await SendAsync("/history/thread", content, ContractsJsonContext.Default.HistoryThreadResponse, RequestTimeout, ct);
-        return response.Entries;
+        var content = Json(request, ContractsJsonContext.Default.HistoryContextRequest);
+        return SendAsync("/history/context", content, ContractsJsonContext.Default.HistoryContextResponse, RequestTimeout, ct);
+    }
+
+    /// <exception cref="AgentException">With code not_found when the reference matches nothing.</exception>
+    public Task<DialogModeResponse> SetDialogModeAsync(DialogModeRequest request, CancellationToken ct)
+    {
+        var content = Json(request, ContractsJsonContext.Default.DialogModeRequest);
+        return SendAsync("/history/dialog-mode", content, ContractsJsonContext.Default.DialogModeResponse, RequestTimeout, ct);
     }
 
     public Task<SearchResponse> SearchAsync(SearchRequest request, CancellationToken ct)

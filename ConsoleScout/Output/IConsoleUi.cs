@@ -18,6 +18,10 @@ internal interface IConsoleUi
     /// dimmed on the line below for as long as the spinner runs, and disappears with it.</summary>
     Task<T> RunWithStatusAsync<T>(string status, Func<Task<T>> work, string? hint = null);
 
+    /// <summary>Waits for <paramref name="work"/>, showing <paramref name="status"/> with a spinner only once it has
+    /// taken longer than a moment: a fast call shows nothing, so the spinner does not flash.</summary>
+    Task<T> WaitWithStatusAsync<T>(string status, Task<T> work);
+
     void WriteAnswer(string answer);
 
     /// <summary>A Markdown document rendered for the console, e.g. the usage guide.</summary>
@@ -29,8 +33,9 @@ internal interface IConsoleUi
     /// <summary>One donation wallet: address, QR code and network warning.</summary>
     void WriteWallet(Wallet wallet);
 
-    /// <summary>The id of a saved answer under it, with how to follow up on it.</summary>
-    void WriteAnswerId(long id);
+    /// <summary>The numbers of a saved answer and its dialog under it, with how to go on: how to follow up, or,
+    /// in <paramref name="dialogMode"/>, that the mode is on and how to start a new dialog or turn it off.</summary>
+    void WriteAnswerId(long id, long dialogId, bool dialogMode);
 
     /// <summary>A dimmed line of secondary information.</summary>
     void WriteNote(string message);

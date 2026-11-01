@@ -148,14 +148,21 @@ app.MapPost("/history", async (AppendHistoryRequest request, HistoryStore store,
         throw new AgentFailure(AgentErrorCodes.BadRequest, "The session and the question are required.");
     }
 
-    var id = await store.AppendAsync(request, ct);
-    return Results.Ok(new AppendHistoryResponse(id));
+    var saved = await store.AppendAsync(request, ct);
+    return Results.Ok(saved);
 });
 
-app.MapPost("/history/thread", async (HistoryThreadRequest request, HistoryStore store, CancellationToken ct) =>
+// What a question follows up on, decided in one request: -c, -n, the session's dialog mode, or nothing.
+app.MapPost("/history/context", async (HistoryContextRequest request, HistoryStore store, CancellationToken ct) =>
 {
-    var entries = await store.GetThreadAsync(request, ct);
-    return Results.Ok(new HistoryThreadResponse(entries));
+    var context = await store.ResolveContextAsync(request, ct);
+    return Results.Ok(context);
+});
+
+app.MapPost("/history/dialog-mode", async (DialogModeRequest request, HistoryStore store, CancellationToken ct) =>
+{
+    var mode = await store.SetDialogModeAsync(request, ct);
+    return Results.Ok(mode);
 });
 
 app.MapPost("/search", async (SearchRequest request, IEnumerable<ISearchEngine> engines, CancellationToken ct) =>

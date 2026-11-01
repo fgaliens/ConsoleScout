@@ -50,6 +50,12 @@ internal static class ConsoleScoutApp
                 return await RunAsync(withQuestion, ct);
             }
 
+            if (options.ChangesDialogMode)
+            {
+                await provider.GetRequiredService<DialogCommand>().RunAsync(options.Context, ct);
+                return 0;
+            }
+
             if (options.Status)
             {
                 return await provider.GetRequiredService<StatusCommand>().RunAsync();
@@ -92,7 +98,8 @@ internal static class ConsoleScoutApp
             }
 
             var length = options.Length ?? settings.Preferences.AnswerLength;
-            await provider.GetRequiredService<AskCommand>().RunAsync(question, length, options.Context, ct);
+            await provider.GetRequiredService<AskCommand>()
+                .RunAsync(question, length, options.Context, options.Dialog, options.NewDialog, ct);
             return 0;
         }
         catch (Exception ex) when (ex is ConfigurationException or AiException or AgentUnavailableException

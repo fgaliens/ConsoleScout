@@ -15,6 +15,9 @@ internal sealed class ConsoleUi(IAnswerWriter answers, WalletWriter wallets, Mar
     /// the background in many dark themes; dim stays readable on dark and light ones alike.</summary>
     private const string Secondary = "dim";
 
+    /// <summary>How long a call may take before WaitWithStatusAsync shows a spinner.</summary>
+    private static readonly TimeSpan SpinnerDelay = TimeSpan.FromMilliseconds(300);
+
     // Written by Report from tool code, read by the animation loop; a reference swap needs no lock.
     private volatile string? _statusLine;
 
@@ -75,6 +78,18 @@ internal sealed class ConsoleUi(IAnswerWriter answers, WalletWriter wallets, Mar
         }
     }
 
+    public async Task<T> WaitWithStatusAsync<T>(string status, Task<T> work)
+    {
+        var grace = Task.Delay(SpinnerDelay);
+        var first = await Task.WhenAny(work, grace);
+        if (first == work)
+        {
+            return await work;
+        }
+
+        return await RunWithStatusAsync(status, () => work);
+    }
+
     public void Report(string activity, string detail)
     {
         if (_statusLine is not null)
@@ -97,9 +112,15 @@ internal sealed class ConsoleUi(IAnswerWriter answers, WalletWriter wallets, Mar
 
     public void WriteInfo(string message) => AnsiConsole.WriteLine(message);
 
-    public void WriteAnswerId(long id)
+    public void WriteAnswerId(long id, long dialogId, bool dialogMode)
     {
-        AnsiConsole.MarkupLine($"[bold]Session ID: x{id}[/] [{Secondary}]· csc -c … follows up here, csc -c x{id} … from any terminal[/]");
+        var numbers = $"[bold]Message x{id} · Dialog d{dialogId}[/]";
+
+        // In dialog mode the state itself is shown at full brightness: it changes what the next question does.
+        var line = dialogMode
+            ? $"{numbers} [{Secondary}]·[/] dialog mode on [{Secondary}]· csc -n … new · csc -d to turn off[/]"
+            : $"{numbers} [{Secondary}]· csc -c … continues, csc -c d{dialogId} … anywhere[/]";
+        AnsiConsole.MarkupLine(line);
     }
 
     public void WriteNote(string message)

@@ -140,7 +140,9 @@ delete it too to remove everything.
 | `csc` | Asks for a question. While a key is missing, shows what to set up instead. |
 | `csc -l <question>` | A detailed answer (`--long`). |
 | `csc -s <question>` | The shortest answer (`--short`). |
-| `csc -c <question>` | Follows up on your previous answer (`--with-context`); see [Follow-up questions](#follow-up-questions). |
+| `csc -c <question>` | Follows up on your previous answer (`--continue`); `-c d7` continues dialog 7. See [Follow-up questions](#follow-up-questions). |
+| `csc -d` | Turns dialog mode on or off in this terminal (`--dialog`): every question continues the conversation. See [Dialog mode](#dialog-mode). |
+| `csc -n <question>` | Starts a new dialog, even in dialog mode (`--new`). |
 | `csc --set-key main` | Saves an API key (`-k`). Models: `main`, `summarizer`. `-k main=<key>` takes the key from the command line instead of asking. |
 | `csc --status` | Shows the setup: settings, keys, the background service, the terminal session. |
 | `csc --readme` | Shows this documentation. |
@@ -153,21 +155,44 @@ A question cannot be combined with `--set-key`, `--status`, `--readme`, `-r`, `-
 
 ## Follow-up questions
 
-Every answer gets a number, shown under it as `x42`. With `-c` the model sees your earlier questions and
-answers, so you can build on them:
+Under every answer you see two numbers: the message, `x42`, and its dialog, `d40` (the number of the
+dialog's first message). With `-c` the model sees the conversation so far, so you can build on it:
 
 ```
-csc how do I list open ports on macOS
-csc -c and only the ones listening on IPv6      # follows up on the last answer
-csc -c n1 and on Linux                          # follows up on the answer before the last one
-csc -c x42 what about Windows                   # follows up on answer 42, from any terminal
+csc how do I list open ports on macOS            # Message x40 · Dialog d40
+csc -c and only the ones listening on IPv6       # follows up on the last answer in this terminal
+csc -c d40 and on Linux                          # continues dialog 40, from any terminal
+csc -c x40 what about Windows                    # branches off message 40, from any terminal
+csc -c n1 and with sudo                          # follows up on the answer before the last one
 ```
 
-- `-c` and `-c n<number>` look at the questions asked in the same terminal window or tab. Each tab has
-  its own history; `x<number>` works from anywhere.
-- Only `x…` and `n…` right after `-c` count as a reference: `csc -c 3 apples` asks about "3 apples".
-- The model sees up to 5 earlier questions of the conversation.
-- The history is kept for 30 days.
+- `-c` (also `--continue`) and `-c n<number>` look at the questions asked in the same terminal window or
+  tab; each tab has its own history. `d<number>` and `x<number>` work from anywhere.
+- `d<number>` continues a dialog where it stopped, at its latest message. `x<number>` continues from that
+  exact message, which branches the dialog when the message is not its latest.
+- Only `x…`, `d…` and `n…` right after `-c` count as a reference: `csc -c 3 apples` asks about "3 apples".
+- The model sees up to 5 earlier questions of the conversation. The history is kept for 30 days.
+
+### Dialog mode
+
+In dialog mode every question in the terminal tab continues the conversation, without `-c`:
+
+```
+csc -d                       # dialog mode on: the next question starts a dialog
+csc what is a hash table
+csc and how is it different from a tree     # continues, no -c needed
+csc -n how do I bake bread                  # starts a new dialog, the mode stays on
+csc -d                       # dialog mode off
+```
+
+- `csc -c -d` turns the mode on for the conversation you have been continuing with `-c`; `csc -c d40 -d`
+  or `csc -c x42 -d` for that dialog or message.
+- With a question, `-d` turns the mode on and asks right away: `csc -d tell me more`, or
+  `csc -c -d tell me more` to continue the current conversation. It never turns the mode off; only
+  `csc -d` alone does.
+- While the mode is on, the line under each answer says so, with how to start a new dialog (`csc -n`) and
+  how to turn the mode off (`csc -d`). `csc --status` shows it too.
+- The mode belongs to the terminal tab: other tabs are not affected.
 
 ## How answers are made
 

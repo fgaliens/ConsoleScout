@@ -36,6 +36,7 @@ internal static class ServiceCollectionExtensions
             .AddTools(settings)
             .AddAssistant(settings)
             .AddSingleton<AskCommand>()
+            .AddSingleton<DialogCommand>()
             .AddSingleton<SetKeyCommand>()
             .AddSingleton<RunAgentCommand>()
             .AddSingleton<GuideCommand>()
