@@ -10,6 +10,6 @@ internal static class DialogMessages
     public static string Off => "Dialog mode is off in this terminal.";
 
     public static string On(DialogModeResponse mode) => mode.DialogId is { } dialog
-        ? $"Dialog mode is on in this terminal, continuing dialog d{dialog} (from x{mode.CurrentId}). {How}"
+        ? $"Dialog mode is on in this terminal, continuing dialog d{dialog} (from m{mode.CurrentId}). {How}"
         : $"Dialog mode is on in this terminal: each question continues the conversation. {How}";
 }

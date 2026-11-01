@@ -230,7 +230,7 @@ internal sealed class HistoryStore(IOptions<AgentSettings> options, TimeProvider
         {
             if (!await ExistsAsync(connection, id, ct))
             {
-                throw new AgentFailure(AgentErrorCodes.NotFound, $"There is no answer x{id}.");
+                throw new AgentFailure(AgentErrorCodes.NotFound, $"There is no message m{id}.");
             }
 
             return id;
@@ -260,7 +260,7 @@ internal sealed class HistoryStore(IOptions<AgentSettings> options, TimeProvider
         {
             var root = await RootOfAsync(connection, dialog, ct);
             throw new AgentFailure(AgentErrorCodes.NotFound,
-                $"x{dialog} belongs to dialog d{root}: use -c d{root} (its latest answer) or -c x{dialog} (this answer).");
+                $"m{dialog} belongs to dialog d{root}: use -c d{root} (its latest message) or -c m{dialog} (this message).");
         }
 
         throw new AgentFailure(AgentErrorCodes.NotFound, $"There is no dialog d{dialog}.");

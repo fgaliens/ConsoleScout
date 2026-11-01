@@ -114,7 +114,7 @@ internal sealed class ConsoleUi(IAnswerWriter answers, WalletWriter wallets, Mar
 
     public void WriteAnswerId(long id, long dialogId, bool dialogMode)
     {
-        var numbers = $"[bold]Message x{id} · Dialog d{dialogId}[/]";
+        var numbers = $"[bold]Message m{id} · Dialog d{dialogId}[/]";
 
         // In dialog mode the state itself is shown at full brightness: it changes what the next question does.
         var line = dialogMode

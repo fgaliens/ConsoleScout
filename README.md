@@ -155,22 +155,22 @@ A question cannot be combined with `--set-key`, `--status`, `--readme`, `-r`, `-
 
 ## Follow-up questions
 
-Under every answer you see two numbers: the message, `x42`, and its dialog, `d40` (the number of the
+Under every answer you see two numbers: the message, `m42`, and its dialog, `d40` (the number of the
 dialog's first message). With `-c` the model sees the conversation so far, so you can build on it:
 
 ```
-csc how do I list open ports on macOS            # Message x40 · Dialog d40
+csc how do I list open ports on macOS            # Message m40 · Dialog d40
 csc -c and only the ones listening on IPv6       # follows up on the last answer in this terminal
 csc -c d40 and on Linux                          # continues dialog 40, from any terminal
-csc -c x40 what about Windows                    # branches off message 40, from any terminal
-csc -c n1 and with sudo                          # follows up on the answer before the last one
+csc -c m40 what about Windows                    # branches off message 40, from any terminal
+csc -c b1 and with sudo                          # follows up on the answer one back from the last
 ```
 
-- `-c` (also `--continue`) and `-c n<number>` look at the questions asked in the same terminal window or
-  tab; each tab has its own history. `d<number>` and `x<number>` work from anywhere.
-- `d<number>` continues a dialog where it stopped, at its latest message. `x<number>` continues from that
+- `-c` (also `--continue`) and `-c b<number>` ("back") look at the questions asked in the same terminal
+  window or tab; each tab has its own history. `d<number>` and `m<number>` work from anywhere.
+- `d<number>` continues a dialog where it stopped, at its latest message. `m<number>` continues from that
   exact message, which branches the dialog when the message is not its latest.
-- Only `x…`, `d…` and `n…` right after `-c` count as a reference: `csc -c 3 apples` asks about "3 apples".
+- Only `m…`, `d…` and `b…` right after `-c` count as a reference: `csc -c 3 apples` asks about "3 apples".
 - The model sees up to 5 earlier questions of the conversation. The history is kept for 30 days.
 
 ### Dialog mode
@@ -186,7 +186,7 @@ csc -d                       # dialog mode off
 ```
 
 - `csc -c -d` turns the mode on for the conversation you have been continuing with `-c`; `csc -c d40 -d`
-  or `csc -c x42 -d` for that dialog or message.
+  or `csc -c m42 -d` for that dialog or message.
 - With a question, `-d` turns the mode on and asks right away: `csc -d tell me more`, or
   `csc -c -d tell me more` to continue the current conversation. It never turns the mode off; only
   `csc -d` alone does.

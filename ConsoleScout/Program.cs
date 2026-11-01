@@ -53,11 +53,11 @@ var readmeOption = new Option<bool>(name: "--readme")
     Description = "Show the full documentation",
 };
 
-// -c is a plain flag; a reference after it (x42, n3) is moved to the hidden option by ContextArguments.
+// -c is a plain flag; a reference after it (m42, d7, b3) is moved to the hidden option by ContextArguments.
 var contextOption = new Option<bool>(name: "--with-context", aliases: ["-c", "--continue"])
 {
-    Description = "Follow up on an earlier answer: -c the last one in this terminal; -c n<N> the one N before it; "
-        + "-c x<id> answer <id>, -c d<id> the latest answer of dialog <id>, from any terminal",
+    Description = "Follow up on an earlier answer: -c the last one in this terminal; -c b<N> the one N back; "
+        + "-c m<id> message <id>, -c d<id> the latest message of dialog <id>, from any terminal",
 };
 
 var dialogOption = new Option<bool>(name: "--dialog", aliases: ["-d"])

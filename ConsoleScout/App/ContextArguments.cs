@@ -2,7 +2,7 @@ namespace ConsoleScout.App;
 
 /// <summary>Lets -c take an optional reference without swallowing the question. System.CommandLine would hand
 /// an optional option value the next word whatever it is, so "csc -c and why" would lose "and". Before parsing,
-/// a reference right after -c (x42, d7, n3) is moved to a hidden option, and -c itself becomes a plain flag.</summary>
+/// a reference right after -c (m42, d7, b3) is moved to a hidden option, and -c itself becomes a plain flag.</summary>
 internal static class ContextArguments
 {
     public const string ReferenceOption = "--with-context-reference";
