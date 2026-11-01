@@ -99,7 +99,7 @@ internal sealed class ConsoleUi(IAnswerWriter answers, WalletWriter wallets, Mar
 
     public void WriteAnswerId(long id)
     {
-        AnsiConsole.MarkupLine($"[bold]x{id}[/] [{Secondary}]· csc -c … follows up here, csc -c x{id} … from any terminal[/]");
+        AnsiConsole.MarkupLine($"[bold]Session ID: x{id}[/] [{Secondary}]· csc -c … follows up here, csc -c x{id} … from any terminal[/]");
     }
 
     public void WriteNote(string message)
