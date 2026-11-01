@@ -31,7 +31,8 @@ jobs:
         run: shellcheck install.sh
 
   build:
-    needs: version
+    # Nothing is built while the installer fails its lint: a release must never ship a broken install.sh.
+    needs: [version, lint]
     strategy:
       fail-fast: false
       matrix:
@@ -86,7 +87,7 @@ jobs:
 
   release:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    needs: [version, lint, build]
+    needs: [version, build]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
