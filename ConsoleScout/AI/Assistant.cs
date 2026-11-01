@@ -1,4 +1,5 @@
 using ConsoleScout.Configuration;
+using ConsoleScout.Contracts;
 using ConsoleScout.Tools;
 using OpenAI.Chat;
 
@@ -9,9 +10,12 @@ namespace ConsoleScout.AI;
 /// Writes nothing to the console: failures surface as AiException.</summary>
 internal sealed class Assistant(ModelClient model, AnswerFormat format, ToolInvoker tools, EnvironmentInfo environment)
 {
+    /// <param name="context">Earlier questions and answers this one follows up on, oldest first; empty for a
+    /// standalone question. They are replayed as the conversation so far.</param>
     public async Task<string> AskAsync(
         string question,
-        AnswerLength length = AnswerLength.Normal,
+        AnswerLength length,
+        IReadOnlyList<HistoryEntry> context,
         CancellationToken ct = default)
     {
         var description = environment.Describe();
@@ -22,11 +26,14 @@ internal sealed class Assistant(ModelClient model, AnswerFormat format, ToolInvo
             .WithFormat(format)
             .Build();
 
-        List<ChatMessage> messages =
-        [
-            new SystemChatMessage(prompt),
-            new UserChatMessage(question),
-        ];
+        List<ChatMessage> messages = [new SystemChatMessage(prompt)];
+        foreach (var entry in context)
+        {
+            messages.Add(new UserChatMessage(entry.Question));
+            messages.Add(new AssistantChatMessage(entry.Answer));
+        }
+
+        messages.Add(new UserChatMessage(question));
 
         var withTools = new ChatCompletionOptions();
         foreach (var definition in tools.Definitions)

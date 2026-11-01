@@ -1,4 +1,5 @@
 using ConsoleScout.Contracts;
+using ConsoleScout.Session;
 using Microsoft.Extensions.Configuration;
 
 namespace ConsoleScout.Configuration;
@@ -81,7 +82,14 @@ internal static class ConfigurationLoader
                 continue;
             }
 
-            yield return new(name[EnvironmentPrefix.Length..].Replace("__", ConfigurationPath.KeyDelimiter), (string?)variable.Value);
+            // Shares the prefix but selects the terminal session rather than configuring anything.
+            if (string.Equals(name, TerminalSession.Variable, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var key = name[EnvironmentPrefix.Length..].Replace("__", ConfigurationPath.KeyDelimiter);
+            yield return new(key, (string?)variable.Value);
         }
     }
 

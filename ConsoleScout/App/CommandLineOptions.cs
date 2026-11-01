@@ -8,6 +8,8 @@ namespace ConsoleScout.App;
 /// <param name="Length">Null when neither --long nor --short was given: the configured preference applies.</param>
 /// <param name="SetKeys">--set-key values, each "model" or "model=key".</param>
 /// <param name="DonateNetwork">The network given to --donate, if any; null lists the networks.</param>
+/// <param name="Context">The earlier answer -c follows up on; null without -c. Goes with a question, or with
+/// none, in which case the question is asked for.</param>
 internal sealed record CommandLineOptions(
     string? Question,
     AnswerLength? Length,
@@ -17,7 +19,8 @@ internal sealed record CommandLineOptions(
     string? DonateNetwork,
     bool NoDonate,
     bool Status,
-    bool Readme)
+    bool Readme,
+    ContextReference? Context)
 {
     /// <summary>No question and no other action: the usage guide is shown, and a question asked for.</summary>
     public bool ShowsGuide =>

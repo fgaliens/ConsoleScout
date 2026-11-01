@@ -1,6 +1,7 @@
 using System.Text;
 using ConsoleScout.Configuration;
 using ConsoleScout.Agent;
+using ConsoleScout.Session;
 
 namespace ConsoleScout.App;
 
@@ -62,6 +63,8 @@ internal sealed record SetupStatus(string Markdown, bool CanAnswer)
             await AppendAgentAsync(builder, settings);
         }
 
+        AppendSession(builder, settings);
+
         if (missing > 0)
         {
             var keys = missing == 1 ? "key" : "keys";
@@ -79,6 +82,24 @@ internal sealed record SetupStatus(string Markdown, bool CanAnswer)
         var list = found.Count == 0 ? "none yet" : string.Join(", ", found);
         var directory = Path.GetDirectoryName(ConfigurationLoader.UserSettingsPath);
         builder.Append("- ○ **User files** in ").Append(directory).Append(": ").Append(list).Append(".\n");
+    }
+
+    private static void AppendSession(StringBuilder builder, AppSettings settings)
+    {
+        if (!settings.History.Enabled)
+        {
+            builder.Append("- ○ **History** is turned off (history.enabled); -c is not available.\n");
+            return;
+        }
+
+        if (TerminalSession.IsShared)
+        {
+            builder.Append("- ○ **Terminal session** cannot be told apart here, so all terminals share one history for -c. ")
+                .Append("Set ").Append(TerminalSession.Variable).Append(" per terminal to separate them.\n");
+            return;
+        }
+
+        builder.Append("- ✓ **Terminal session** ").Append(TerminalSession.Id).Append(": -c follows up on questions asked in it.\n");
     }
 
     /// <returns>Whether the key is set.</returns>
@@ -100,7 +121,7 @@ internal sealed record SetupStatus(string Markdown, bool CanAnswer)
     {
         if (!settings.UsesAgent())
         {
-            builder.Append("- ○ **Agent**: not needed, the web tools are turned off.\n");
+            builder.Append("- ○ **Agent**: not needed, the web tools and the history are turned off.\n");
             return;
         }
 

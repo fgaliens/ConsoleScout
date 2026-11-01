@@ -32,6 +32,23 @@ internal sealed class AgentClient(AgentLauncher launcher, AgentSettings settings
         return SendAsync("/fetch/batch", content, ContractsJsonContext.Default.FetchBatchResponse, RequestTimeout, ct);
     }
 
+    /// <returns>The id of the saved entry.</returns>
+    public async Task<long> AppendHistoryAsync(AppendHistoryRequest request, CancellationToken ct)
+    {
+        var content = Json(request, ContractsJsonContext.Default.AppendHistoryRequest);
+        var response = await SendAsync("/history", content, ContractsJsonContext.Default.AppendHistoryResponse, RequestTimeout, ct);
+        return response.Id;
+    }
+
+    /// <summary>The referenced entry and the ones it followed up on, oldest first.</summary>
+    /// <exception cref="AgentException">With code not_found when there is no such entry.</exception>
+    public async Task<IReadOnlyList<HistoryEntry>> GetHistoryThreadAsync(HistoryThreadRequest request, CancellationToken ct)
+    {
+        var content = Json(request, ContractsJsonContext.Default.HistoryThreadRequest);
+        var response = await SendAsync("/history/thread", content, ContractsJsonContext.Default.HistoryThreadResponse, RequestTimeout, ct);
+        return response.Entries;
+    }
+
     public Task<SearchResponse> SearchAsync(SearchRequest request, CancellationToken ct)
     {
         var content = Json(request, ContractsJsonContext.Default.SearchRequest);

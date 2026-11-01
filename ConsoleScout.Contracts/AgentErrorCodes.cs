@@ -9,4 +9,5 @@ public static class AgentErrorCodes
     public const string Timeout = "timeout";
     public const string FetchFailed = "fetch_failed";
     public const string UnsupportedEngine = "unsupported_engine";
+    public const string NotFound = "not_found";
 }

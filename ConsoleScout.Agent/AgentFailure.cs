@@ -11,7 +11,7 @@ internal sealed class AgentFailure(string code, string message) : Exception(mess
     public int StatusCode => Code switch
     {
         AgentErrorCodes.BadRequest => StatusCodes.Status400BadRequest,
-        AgentErrorCodes.UnsupportedEngine => StatusCodes.Status404NotFound,
+        AgentErrorCodes.UnsupportedEngine or AgentErrorCodes.NotFound => StatusCodes.Status404NotFound,
         AgentErrorCodes.Timeout => StatusCodes.Status504GatewayTimeout,
         _ => StatusCodes.Status502BadGateway,
     };

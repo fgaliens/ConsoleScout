@@ -15,4 +15,6 @@ internal sealed class AppSettings
     public OutputSettings Output { get; set; } = new();
 
     public PreferencesSettings Preferences { get; set; } = new();
+
+    public HistorySettings History { get; set; } = new();
 }

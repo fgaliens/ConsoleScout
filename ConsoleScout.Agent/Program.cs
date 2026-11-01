@@ -4,6 +4,7 @@ using ConsoleScout.Contracts;
 using ConsoleScout.Agent;
 using ConsoleScout.Agent.Browser;
 using ConsoleScout.Agent.Fetching;
+using ConsoleScout.Agent.History;
 using ConsoleScout.Agent.Hosting;
 using ConsoleScout.Agent.Search;
 using Microsoft.Extensions.Options;
@@ -67,6 +68,7 @@ builder.Services.AddHostedService(provider => provider.GetRequiredService<IdleSh
 builder.Services.AddSingleton<NavigationGuard>();
 builder.Services.AddSingleton<BrowserHost>();
 builder.Services.AddSingleton<PageFetcher>();
+builder.Services.AddSingleton<HistoryStore>();
 builder.Services
     .AddHttpClient(PageFetcher.HttpClientName, (provider, http) =>
     {
@@ -93,6 +95,10 @@ if (setup)
     await setupBrowser.RunSetupAsync(url);
     return;
 }
+
+// Before the first request: the schema has to exist, and old entries go before anyone reads them.
+var history = app.Services.GetRequiredService<HistoryStore>();
+await history.InitializeAsync(CancellationToken.None);
 
 app.UseMiddleware<IdleShutdown>();
 app.UseMiddleware<AccessGuard>();
@@ -132,6 +138,24 @@ app.MapPost("/fetch/batch", async (FetchBatchRequest request, PageFetcher fetche
 {
     var pages = await fetcher.FetchBatchAsync(request, ct);
     return Results.Ok(pages);
+});
+
+// The question history behind csc -c: one entry per answer, linked to the one it followed up on.
+app.MapPost("/history", async (AppendHistoryRequest request, HistoryStore store, CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(request.Session) || string.IsNullOrWhiteSpace(request.Question))
+    {
+        throw new AgentFailure(AgentErrorCodes.BadRequest, "The session and the question are required.");
+    }
+
+    var id = await store.AppendAsync(request, ct);
+    return Results.Ok(new AppendHistoryResponse(id));
+});
+
+app.MapPost("/history/thread", async (HistoryThreadRequest request, HistoryStore store, CancellationToken ct) =>
+{
+    var entries = await store.GetThreadAsync(request, ct);
+    return Results.Ok(new HistoryThreadResponse(entries));
 });
 
 app.MapPost("/search", async (SearchRequest request, IEnumerable<ISearchEngine> engines, CancellationToken ct) =>

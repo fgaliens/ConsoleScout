@@ -93,6 +93,12 @@ internal sealed class ConsoleUi(IAnswerWriter answers, WalletWriter wallets, Mar
 
     public void WriteInfo(string message) => AnsiConsole.WriteLine(message);
 
+    public void WriteNote(string message)
+    {
+        var escaped = Markup.Escape(message);
+        AnsiConsole.MarkupLine($"[grey]{escaped}[/]");
+    }
+
     public void WriteError(string message) => ErrorConsole.Write(message);
 
     private void EnsureInteractive(string message)

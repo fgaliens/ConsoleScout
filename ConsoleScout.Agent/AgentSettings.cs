@@ -9,4 +9,6 @@ internal sealed class AgentSettings
     public BrowserSettings Browser { get; set; } = new();
 
     public FetchSettings Fetch { get; set; } = new();
+
+    public HistorySettings History { get; set; } = new();
 }

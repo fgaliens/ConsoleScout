@@ -84,17 +84,19 @@ internal static class ConsoleScoutApp
                 return 0;
             }
 
-            // The browser takes seconds to start; it can do so while the model thinks.
+            // The agent (and its browser) takes seconds to start; it can do so while the model thinks, so the
+            // history is ready by the time the answer is saved.
             if (settings.UsesAgent())
             {
                 provider.GetRequiredService<AgentLauncher>().StartInBackground();
             }
 
             var length = options.Length ?? settings.Preferences.AnswerLength;
-            await provider.GetRequiredService<AskCommand>().RunAsync(question, length, ct);
+            await provider.GetRequiredService<AskCommand>().RunAsync(question, length, options.Context, ct);
             return 0;
         }
-        catch (Exception ex) when (ex is ConfigurationException or AiException or AgentUnavailableException or InputUnavailableException)
+        catch (Exception ex) when (ex is ConfigurationException or AiException or AgentUnavailableException
+            or InputUnavailableException or ContextUnavailableException)
         {
             ErrorConsole.Write(ex.Message);
             return 1;

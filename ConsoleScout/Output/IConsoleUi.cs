@@ -29,6 +29,9 @@ internal interface IConsoleUi
     /// <summary>One donation wallet: address, QR code and network warning.</summary>
     void WriteWallet(Wallet wallet);
 
+    /// <summary>A dimmed line of secondary information, e.g. the id of a saved answer.</summary>
+    void WriteNote(string message);
+
     /// <summary>A plain status line, e.g. confirming that a key was saved.</summary>
     void WriteInfo(string message);
 

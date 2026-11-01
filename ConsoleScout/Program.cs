@@ -53,6 +53,18 @@ var readmeOption = new Option<bool>(name: "--readme")
     Description = "Show the full documentation",
 };
 
+// -c is a plain flag; a reference after it (x42, n3) is moved to the hidden option by ContextArguments.
+var contextOption = new Option<bool>(name: "--with-context", aliases: ["-c"])
+{
+    Description = "Follow up on an earlier answer: -c the last one in this terminal; -c n<N> the one N before it; "
+        + "-c x<id> answer <id> from any terminal",
+};
+
+var contextReferenceOption = new Option<string?>(name: ContextArguments.ReferenceOption)
+{
+    Hidden = true,
+};
+
 var rootCommand = new RootCommand("Console Scout")
 {
     questionArgument,
@@ -64,6 +76,8 @@ var rootCommand = new RootCommand("Console Scout")
     noDonateOption,
     statusOption,
     readmeOption,
+    contextOption,
+    contextReferenceOption,
 };
 
 HelpLayout.Apply(rootCommand);
@@ -91,11 +105,23 @@ rootCommand.Validators.Add(result =>
         result.AddError("A question and the options --set-key, --run-agent, --donate, --no-donate, --status and --readme "
             + "cannot be combined; give one of them.");
     }
+
+    // -c goes with a question, or alone: the question is then asked for.
+    var otherActions = actions.Skip(1).Count(given => given);
+    if (result.GetValue(contextOption) && otherActions > 0)
+    {
+        result.AddError("-c (--with-context) goes with a question only.");
+    }
 });
 
 rootCommand.SetAction((parseResult, ct) =>
 {
     var words = parseResult.GetValue(questionArgument) ?? [];
+
+    var reference = parseResult.GetValue(contextReferenceOption);
+    var context = !parseResult.GetValue(contextOption)
+        ? null
+        : reference is null ? ContextReference.Latest : ContextReference.TryParse(reference);
 
     AnswerLength? length = parseResult.GetValue(longAnswerOption) ? AnswerLength.Long
         : parseResult.GetValue(shortAnswerOption) ? AnswerLength.Short
@@ -111,10 +137,12 @@ rootCommand.SetAction((parseResult, ct) =>
             DonateNetwork: parseResult.GetValue(donateOption),
             NoDonate: parseResult.GetValue(noDonateOption),
             Status: parseResult.GetValue(statusOption),
-            Readme: parseResult.GetValue(readmeOption)),
+            Readme: parseResult.GetValue(readmeOption),
+            Context: context),
         ct);
 });
 
+var normalized = ContextArguments.Normalize(args);
 return await rootCommand
-    .Parse(args)
+    .Parse(normalized)
     .InvokeAsync();

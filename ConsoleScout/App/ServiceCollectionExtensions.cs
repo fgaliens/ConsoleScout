@@ -45,9 +45,9 @@ internal static class ServiceCollectionExtensions
             .AddSingleton<NoDonateCommand>();
     }
 
-    /// <summary>True when some registered tool goes through the agent, so it is worth starting early.</summary>
+    /// <summary>True when the web tools or the history go through the agent, so it is worth starting early.</summary>
     public static bool UsesAgent(this AppSettings settings) =>
-        settings.Tools.WebSearch.Enabled || settings.Tools.WebFetch.Enabled;
+        settings.Tools.WebSearch.Enabled || settings.Tools.WebFetch.Enabled || settings.History.Enabled;
 
     private static IServiceCollection AddOutput(this IServiceCollection services, AppSettings settings)
     {
