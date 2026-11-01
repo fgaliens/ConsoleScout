@@ -120,7 +120,7 @@ detect_rid() {
             ;;
         Linux)
             if ldd --version 2>&1 | grep -qi musl; then
-                die "musl-based Linux (e.g. Alpine) is not supported: the builds need glibc 2.35 or newer"
+                die "musl-based Linux (e.g. Alpine) is not supported: the builds need glibc 2.39 or newer"
             fi
             platform=linux
             ;;

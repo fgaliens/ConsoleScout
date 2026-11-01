@@ -172,7 +172,7 @@ usually up by the time it is needed.
   `ConsoleScout` launchers in `~/.local/bin`. If that is not on your `PATH`, it offers to add it to your
   shell's rc file, and in zsh to add `alias csc='noglob csc'`, both in one marked `ConsoleScout` block.
   Options: `--yes` (no questions), `--force` (reinstall the same version), `--dir`, `--bin-dir`; pass them
-  with `… | sh -s -- --yes`. Linux builds need glibc 2.35 or newer (Ubuntu 22.04, Debian 12 and up).
+  with `… | sh -s -- --yes`. Linux builds need glibc 2.39 or newer (Ubuntu 24.04, Debian 13 and up).
 - **Windows** (`install.ps1`): installs to `%LOCALAPPDATA%\Programs\ConsoleScout` and offers to add it to
   your user `PATH`. Options, after downloading the script: `-Yes`, `-Force`, `-Dir`.
 - **Updates.** What the first run chose is kept in `~/.consolescout/install.json`. A later run checks the

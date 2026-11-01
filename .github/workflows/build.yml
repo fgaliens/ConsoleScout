@@ -36,10 +36,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # NativeAOT compiles on the target OS, so every platform gets a native runner. Linux builds on 22.04:
-          # the binary needs the glibc it was built against or newer (2.35: Ubuntu 22.04, Debian 12 and up).
-          - { rid: linux-x64, runner: ubuntu-22.04 }
-          - { rid: linux-arm64, runner: ubuntu-22.04-arm }
+          # NativeAOT compiles on the target OS, so every platform gets a native runner. Linux builds on 24.04:
+          # the binary needs the glibc it was built against or newer (2.39: Ubuntu 24.04, Debian 13 and up).
+          - { rid: linux-x64, runner: ubuntu-24.04 }
+          - { rid: linux-arm64, runner: ubuntu-24.04-arm }
           - { rid: osx-arm64, runner: macos-15 }
           - { rid: osx-x64, runner: macos-15-intel }
           - { rid: win-x64, runner: windows-2025 }
