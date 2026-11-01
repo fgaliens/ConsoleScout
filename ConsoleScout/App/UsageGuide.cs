@@ -1,16 +1,16 @@
 namespace ConsoleScout.App;
 
-/// <summary>The part of README.md shown by a run without arguments: the introduction, quick start and
+/// <summary>The part of README.md shown by a run without arguments: the introduction, getting started and
 /// usage. The README is embedded in the executable, so the guide and the documentation cannot drift apart.</summary>
 internal static class UsageGuide
 {
     private const string ResourceName = "ConsoleScout.README.md";
 
     /// <summary>Second-level sections kept besides the introduction above the first of them.</summary>
-    private static readonly string[] Sections = ["Quick start", "Usage"];
+    private static readonly string[] Sections = ["Getting started", "Usage"];
 
     private const string Footer =
-        "Configuration, models, the agent and publishing: `csc --readme`. Setup state: `csc --status`.";
+        "Configuration, follow-up questions and troubleshooting: `csc --readme`. Setup state: `csc --status`.";
 
     /// <summary>The introduction, quick start and usage, with a pointer to the rest.</summary>
     public static string Load()
