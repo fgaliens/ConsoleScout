@@ -78,7 +78,7 @@ internal sealed class AskCommand(
         try
         {
             var id = await agent.AppendHistoryAsync(request, ct);
-            ui.WriteNote($"x{id} · follow up here with csc -c <question>, or from any terminal with csc -c x{id} <question>");
+            ui.WriteAnswerId(id);
         }
         catch (Exception ex) when (ex is AgentException or AgentUnavailableException)
         {

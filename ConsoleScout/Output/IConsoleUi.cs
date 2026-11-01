@@ -29,7 +29,10 @@ internal interface IConsoleUi
     /// <summary>One donation wallet: address, QR code and network warning.</summary>
     void WriteWallet(Wallet wallet);
 
-    /// <summary>A dimmed line of secondary information, e.g. the id of a saved answer.</summary>
+    /// <summary>The id of a saved answer under it, with how to follow up on it.</summary>
+    void WriteAnswerId(long id);
+
+    /// <summary>A dimmed line of secondary information.</summary>
     void WriteNote(string message);
 
     /// <summary>A plain status line, e.g. confirming that a key was saved.</summary>

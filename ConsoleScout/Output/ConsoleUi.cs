@@ -11,6 +11,10 @@ internal sealed class ConsoleUi(IAnswerWriter answers, WalletWriter wallets, Mar
 {
     private static readonly Spinner Spinner = Spinner.Known.Star;
 
+    /// <summary>Secondary text: the theme's own foreground, dimmed. A fixed colour such as grey is close to
+    /// the background in many dark themes; dim stays readable on dark and light ones alike.</summary>
+    private const string Secondary = "dim";
+
     // Written by Report from tool code, read by the animation loop; a reference swap needs no lock.
     private volatile string? _statusLine;
 
@@ -93,10 +97,15 @@ internal sealed class ConsoleUi(IAnswerWriter answers, WalletWriter wallets, Mar
 
     public void WriteInfo(string message) => AnsiConsole.WriteLine(message);
 
+    public void WriteAnswerId(long id)
+    {
+        AnsiConsole.MarkupLine($"[bold]x{id}[/] [{Secondary}]· csc -c … follows up here, csc -c x{id} … from any terminal[/]");
+    }
+
     public void WriteNote(string message)
     {
         var escaped = Markup.Escape(message);
-        AnsiConsole.MarkupLine($"[grey]{escaped}[/]");
+        AnsiConsole.MarkupLine($"[{Secondary}]{escaped}[/]");
     }
 
     public void WriteError(string message) => ErrorConsole.Write(message);
@@ -119,7 +128,7 @@ internal sealed class ConsoleUi(IAnswerWriter answers, WalletWriter wallets, Mar
             return status;
         }
 
-        var dimmed = new Markup($"  [grey]{Markup.Escape(hint)}[/]");
+        var dimmed = new Markup($"  [{Secondary}]{Markup.Escape(hint)}[/]");
         return new Rows(status, dimmed);
     }
 
