@@ -31,6 +31,10 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
     ContentRootPath = AppContext.BaseDirectory,
 });
 
+// The user's agent settings live next to their other files, so updates replacing appsettings.json keep them.
+// Separate from the CLI's settings.json, whose strict binding would reject the agent's keys.
+var userSettingsPath = Path.Combine(AgentDiscovery.DataDirectory, "agent-settings.json");
+builder.Configuration.AddJsonFile(userSettingsPath, optional: true, reloadOnChange: false);
 builder.Configuration.AddEnvironmentVariables("CONSOLESCOUT_AGENT_");
 
 // Output ends up in ~/.consolescout/agent.log; timestamps show where start-up time goes.

@@ -4,9 +4,10 @@ using Microsoft.Extensions.Configuration;
 namespace ConsoleScout.Configuration;
 
 /// <summary>Builds IConfiguration from these sources, each overriding the one before:
-/// appsettings.json next to the executable, appsettings.Debug.json (Debug builds only), preferences.json and
-/// secrets.json in the user profile, and environment variables prefixed CONSOLESCOUT_ (sections joined by a double
-/// underscore). API keys live in the same tree as everything else, under the section that uses them.</summary>
+/// appsettings.json next to the executable (the shipped defaults), appsettings.Debug.json (Debug builds only),
+/// then in ~/.consolescout: settings.json (the user's settings), preferences.json and secrets.json, and finally
+/// environment variables prefixed CONSOLESCOUT_ (sections joined by a double underscore). API keys live in the
+/// same tree as everything else, under the section that uses them.</summary>
 internal static class ConfigurationLoader
 {
     private const string EnvironmentPrefix = "CONSOLESCOUT_";
@@ -23,8 +24,13 @@ internal static class ConfigurationLoader
     /// Same shape as appsettings.json.</summary>
     public static string PreferencesPath { get; } = Path.Combine(AgentDiscovery.DataDirectory, "preferences.json");
 
+    /// <summary>settings.json next to secrets.json: the user's own settings, such as models and search
+    /// providers. Kept out of the install directory, so updates replace appsettings.json without losing them.</summary>
+    public static string UserSettingsPath { get; } = Path.Combine(AgentDiscovery.DataDirectory, "settings.json");
+
     // AppContext.BaseDirectory resolves next to the executable under both dotnet run and a published build.
-    private static string SettingsPath { get; } = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+    /// <summary>The shipped defaults; replaced by every update.</summary>
+    private static string DefaultsPath { get; } = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
 
     /// <summary>Debug builds only: local overrides such as real model endpoints. Not tracked in git.</summary>
     private static string DebugSettingsPath { get; } = Path.Combine(AppContext.BaseDirectory, "appsettings.Debug.json");
@@ -34,12 +40,13 @@ internal static class ConfigurationLoader
         try
         {
             var builder = new ConfigurationBuilder()
-                .AddJsonFile(SettingsPath, optional: true, reloadOnChange: false);
+                .AddJsonFile(DefaultsPath, optional: true, reloadOnChange: false);
 #if DEBUG
             builder.AddJsonFile(DebugSettingsPath, optional: true, reloadOnChange: false);
 #endif
             var environment = EnvironmentSettings();
             return builder
+                .AddJsonFile(UserSettingsPath, optional: true, reloadOnChange: false)
                 .AddJsonFile(PreferencesPath, optional: true, reloadOnChange: false)
                 .AddJsonFile(SecretsPath, optional: true, reloadOnChange: false)
                 .AddInMemoryCollection(environment)
@@ -89,8 +96,24 @@ internal static class ConfigurationLoader
         }
         catch (InvalidOperationException ex)
         {
-            throw new ConfigurationException($"Invalid settings.{Environment.NewLine}{ex.Message}");
+            // The binder cannot tell which file a key came from, so the files in use are listed instead.
+            var files = SettingsFiles().Where(File.Exists);
+            var list = string.Join(Environment.NewLine + "  ", files);
+            throw new ConfigurationException(
+                $"Invalid settings.{Environment.NewLine}{ex.Message}{Environment.NewLine}"
+                + $"Check these files (and CONSOLESCOUT_* variables):{Environment.NewLine}  {list}");
         }
+    }
+
+    private static IEnumerable<string> SettingsFiles()
+    {
+        yield return DefaultsPath;
+#if DEBUG
+        yield return DebugSettingsPath;
+#endif
+        yield return UserSettingsPath;
+        yield return PreferencesPath;
+        yield return SecretsPath;
     }
 
     /// <summary>Called when the key is about to be used, so a disabled feature never fails

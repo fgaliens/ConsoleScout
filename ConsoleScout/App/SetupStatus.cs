@@ -28,6 +28,8 @@ internal sealed record SetupStatus(string Markdown, bool CanAnswer)
             return new SetupStatus(builder.ToString(), CanAnswer: false);
         }
 
+        AppendUserFiles(builder);
+
         var missing = 0;
         if (!AppendKey(builder, "main", settings.Models.Main.ApiKey))
         {
@@ -67,6 +69,16 @@ internal sealed record SetupStatus(string Markdown, bool CanAnswer)
         }
 
         return new SetupStatus(builder.ToString(), CanAnswer: missing == 0);
+    }
+
+    /// <summary>Which of the user's own files are in use; they override the shipped appsettings.json.</summary>
+    private static void AppendUserFiles(StringBuilder builder)
+    {
+        string[] paths = [ConfigurationLoader.UserSettingsPath, ConfigurationLoader.PreferencesPath, ConfigurationLoader.SecretsPath];
+        var found = paths.Where(File.Exists).Select(Path.GetFileName).ToList();
+        var list = found.Count == 0 ? "none yet" : string.Join(", ", found);
+        var directory = Path.GetDirectoryName(ConfigurationLoader.UserSettingsPath);
+        builder.Append("- ○ **User files** in ").Append(directory).Append(": ").Append(list).Append(".\n");
     }
 
     /// <returns>Whether the key is set.</returns>
