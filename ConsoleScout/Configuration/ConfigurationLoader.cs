@@ -17,6 +17,14 @@ internal static class ConfigurationLoader
     /// from here, so they are set alongside the CLI's - and would otherwise be read as unknown CLI settings.</summary>
     private const string AgentEnvironmentPrefix = "CONSOLESCOUT_AGENT_";
 
+    /// <summary>Variables that share the prefix without being settings: the terminal session override, and the
+    /// release server install.sh can be pointed at for testing.</summary>
+    private static readonly HashSet<string> NotSettings = new(StringComparer.OrdinalIgnoreCase)
+    {
+        TerminalSession.Variable,
+        "CONSOLESCOUT_RELEASE_URL",
+    };
+
     /// <summary>secrets.json in the user profile, alongside how git keeps its own credentials.
     /// Same shape as appsettings.json, holding only the keys.</summary>
     public static string SecretsPath { get; } = Path.Combine(AgentDiscovery.DataDirectory, "secrets.json");
@@ -82,8 +90,7 @@ internal static class ConfigurationLoader
                 continue;
             }
 
-            // Shares the prefix but selects the terminal session rather than configuring anything.
-            if (string.Equals(name, TerminalSession.Variable, StringComparison.OrdinalIgnoreCase))
+            if (NotSettings.Contains(name))
             {
                 continue;
             }

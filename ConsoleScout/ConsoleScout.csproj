@@ -43,7 +43,7 @@
   <Target Name="PublishAgent" AfterTargets="Publish">
     <!-- A separate dotnet publish rather than an MSBuild task: the agent has to be restored for this
          runtime identifier first, which needs an evaluation of its own. -->
-    <Exec Command="&quot;$(DOTNET_HOST_PATH)&quot; publish &quot;$(MSBuildThisFileDirectory)../ConsoleScout.Agent/ConsoleScout.Agent.csproj&quot; -c $(Configuration) -r $(RuntimeIdentifier) --self-contained -nologo -o &quot;$([System.IO.Path]::GetFullPath('$(PublishDir)'))agent&quot;" />
+    <Exec Command="&quot;$(DOTNET_HOST_PATH)&quot; publish &quot;$(MSBuildThisFileDirectory)../ConsoleScout.Agent/ConsoleScout.Agent.csproj&quot; -c $(Configuration) -r $(RuntimeIdentifier) --self-contained -nologo -p:Version=$(Version) -o &quot;$([System.IO.Path]::GetFullPath('$(PublishDir)'))agent&quot;" />
   </Target>
 
   <!-- A short alias next to the executable: a symlink on macOS and Linux, a .cmd shim on Windows.

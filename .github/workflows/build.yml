@@ -1,0 +1,112 @@
+name: Build
+
+# Every push to master publishes a release that install.sh and install.ps1 pick up;
+# pull requests only build, to show that every platform still compiles.
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  version:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - id: version
+        run: echo "version=0.1.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check install.sh
+        run: shellcheck install.sh
+
+  build:
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # NativeAOT compiles on the target OS, so every platform gets a native runner. Linux builds on 22.04:
+          # the binary needs the glibc it was built against or newer (2.35: Ubuntu 22.04, Debian 12 and up).
+          - { rid: linux-x64, runner: ubuntu-22.04 }
+          - { rid: linux-arm64, runner: ubuntu-22.04-arm }
+          - { rid: osx-arm64, runner: macos-15 }
+          - { rid: osx-x64, runner: macos-15-intel }
+          - { rid: win-x64, runner: windows-2025 }
+          - { rid: win-arm64, runner: windows-11-arm }
+    runs-on: ${{ matrix.runner }}
+    env:
+      RID: ${{ matrix.rid }}
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Install NativeAOT prerequisites
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
+      # Publishes the CLI and, through its PublishAgent target, the self-contained agent into out/agent.
+      - name: Publish
+        shell: bash
+        run: >
+          dotnet publish ConsoleScout/ConsoleScout.csproj -c Release -r "$RID" -o out
+          -p:Version="$VERSION" -p:DebugType=none
+
+      - name: Package
+        shell: bash
+        run: |
+          find out -name '*.pdb' -delete
+          find out -name '*.dSYM' -prune -exec rm -rf {} +
+          if [[ "$RID" == win-* ]]; then
+            pwsh -NoProfile -Command "Compress-Archive -Path out/* -DestinationPath consolescout-$RID.zip"
+          else
+            # COPYFILE_DISABLE keeps macOS from adding AppleDouble ._ files; tar keeps the csc symlink.
+            COPYFILE_DISABLE=1 tar -czf "consolescout-$RID.tar.gz" -C out .
+          fi
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: consolescout-${{ matrix.rid }}
+          path: consolescout-${{ matrix.rid }}.*
+          if-no-files-found: error
+
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    needs: [version, lint, build]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    concurrency: release
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        run: cd dist && sha256sum consolescout-* > SHA256SUMS.txt && cat SHA256SUMS.txt
+
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "v$VERSION" dist/* install.sh install.ps1
+          --target "$GITHUB_SHA" --title "ConsoleScout $VERSION" --generate-notes
