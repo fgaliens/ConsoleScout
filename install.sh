@@ -166,7 +166,9 @@ stop_agent() {
     endpoint="$DATA_DIR/agent.json"
     [ -f "$endpoint" ] || return 0
     pid=$(json_value "$endpoint" pid)
-    [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null || return 0
+    if [ -z "$pid" ] || ! kill -0 "$pid" 2>/dev/null; then
+        return 0
+    fi
 
     say "Stopping the running agent (pid $pid)..."
     kill "$pid" 2>/dev/null || true
@@ -222,7 +224,9 @@ else
     bin_dir=$(expand_home "${bin_option:-$(ask "Directory for the csc command" "$DEFAULT_BIN_DIR")}")
 fi
 
-[ -n "$install_dir" ] && [ -n "$bin_dir" ] || die "the install directory and the command directory must not be empty"
+if [ -z "$install_dir" ] || [ -z "$bin_dir" ]; then
+    die "the install directory and the command directory must not be empty"
+fi
 
 # --- download and verify, before touching anything ---------------------------------------------------
 
@@ -233,7 +237,9 @@ fetch "$DOWNLOAD_URL/$tag/SHA256SUMS.txt" "$work/SHA256SUMS.txt" || die "cannot 
 
 expected=$(grep " $asset\$" "$work/SHA256SUMS.txt" | cut -d' ' -f1)
 actual=$(sha256 "$work/$asset")
-[ -n "$expected" ] && [ "$expected" = "$actual" ] || die "checksum mismatch for $asset; nothing was changed"
+if [ -z "$expected" ] || [ "$expected" != "$actual" ]; then
+    die "checksum mismatch for $asset; nothing was changed"
+fi
 
 mkdir -p "$work/new"
 tar -xzf "$work/$asset" -C "$work/new"
