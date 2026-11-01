@@ -13,19 +13,22 @@ commands for your shell come out right.
 
 ## Quick start
 
-Requirements: the [.NET 10 SDK](https://dotnet.microsoft.com/download) to build, and Google Chrome for
-web access (without it, Chromium is downloaded on first use; see [Agent](#agent)).
-
 ```
-dotnet build
-cd ConsoleScout/bin/Debug/net10.0
+# macOS, Linux
+wget -qO- https://raw.githubusercontent.com/fgaliens/ConsoleScout/master/install.sh | sh
 
-./csc --set-key main          # asks for the API key, hidden
-./csc what is the latest version of Node.js
+# Windows (PowerShell)
+irm https://raw.githubusercontent.com/fgaliens/ConsoleScout/master/install.ps1 | iex
+
+csc --set-key main          # asks for the API key, hidden
+csc what is the latest version of Node.js
 ```
 
-The model endpoint and name live in `appsettings.json` (see [Configuration](#configuration)). Any
-OpenAI-compatible chat API works.
+`curl -fsSL <url> | sh` works as well as `wget`. The installer picks the build for your system and
+processor, asks where to install (Enter keeps the default) and puts `csc` on your `PATH`. Run the same
+command again to update: it asks nothing then, and keeps your settings. Google Chrome is used for web
+access when installed; otherwise Chromium is downloaded on first use. Any OpenAI-compatible chat API
+works; models are set in `~/.consolescout/settings.json` (see [Configuration](#configuration)).
 
 ## Usage
 
@@ -39,6 +42,7 @@ OpenAI-compatible chat API works.
 | `csc <question>` | Answers the question. |
 | `csc -l <question>`, `--long` | A detailed answer. |
 | `csc -s <question>`, `--short` | The shortest answer. Default length: `preferences.answerLength`. |
+| `csc -c <question>`, `--with-context` | Follows up on the last answer in this terminal. `-c n2 …` on the one two before it, `-c x42 …` on answer 42 from any terminal. See [Follow-up questions](#follow-up-questions). |
 | `csc -k main`, `--set-key main` | Saves a model's API key to `~/.consolescout/secrets.json`; asks for it without echoing. `-k main=<key>` takes it from the argument. Models: `main`, `summarizer`. Repeatable. |
 | `csc -r`, `--run-agent` | Starts the agent and waits until its browser is ready. Also the setup step on a new machine. |
 | `csc --donate` | Lists the networks you can donate on. |
@@ -78,15 +82,39 @@ in the prompt at all.
   result, each under its URL. A page that cannot be read is reported in its place without failing
   the others. Pages are rendered in a browser when plain HTTP is not enough.
 
+## Follow-up questions
+
+Every answer is saved with an id, shown under it as `x42`. `-c` hands the model the conversation so far,
+so a question can build on earlier answers:
+
+```
+csc how do I list open ports on macOS
+csc -c and only the ones listening on IPv6      # follows up on the last answer in this terminal
+csc -c n1 and on Linux                          # on the one before it
+csc -c x42 what about Windows                   # on answer 42, from any terminal
+```
+
+- **Terminal session.** `-c` and `-c n<N>` look only at questions asked in the same terminal tab (or tmux
+  pane): its Unix session, which subshells and pipelines share. On Windows, the shell that started `csc`.
+  Set `CONSOLESCOUT_SESSION` to share or separate sessions on purpose.
+- **Depth.** The model gets up to `history.maxContextTurns` (5) earlier questions and answers of the thread.
+- **Parsing.** Only `x<digits>` and `n<digits>` right after `-c` are a reference; anything else, a bare
+  number included, belongs to the question. `csc -c 3 apples` asks about "3 apples".
+- **Storage.** The agent keeps the history in `~/.consolescout/history.db` (SQLite, owner-only) and
+  removes entries after `Agent:History:KeepDays` (30). `history.enabled: false` turns it off.
+
 ## Configuration
 
 Settings are read through `IConfiguration` from these sources; each overrides the ones before it:
 
-1. `appsettings.json` next to the executable.
+1. `appsettings.json` next to the executable: the shipped defaults, replaced by every update.
 2. `appsettings.Debug.json`: Debug builds only, not tracked in git. For your real endpoints and model names.
-3. `~/.consolescout/preferences.json`: choices made from the command line, such as `--no-donate`.
-4. `~/.consolescout/secrets.json`: API keys, written by `--set-key`. Owner-only (0600).
-5. Environment variables prefixed `CONSOLESCOUT_`, with `__` between sections:
+3. `~/.consolescout/settings.json`: **your settings**, such as models and search providers. Updates leave
+   it alone; an update that finds an edited `appsettings.json` moves the edits here.
+4. `~/.consolescout/preferences.json`: choices made from the command line, such as `--no-donate`.
+5. `~/.consolescout/secrets.json`: API keys, written by `--set-key`. Owner-only (0600). A key in
+   `settings.json` works too, but this file is meant to stay private.
+6. Environment variables prefixed `CONSOLESCOUT_`, with `__` between sections:
    `CONSOLESCOUT_MODELS__MAIN__APIKEY`, `CONSOLESCOUT_TOOLS__WEBSEARCH__PROVIDERS__0=duckduckgo`.
 
 All files share the shape of `appsettings.json`. Unknown or misspelled settings are an error, not
@@ -105,7 +133,8 @@ silently ignored.
   },
   "agent": { "autoStart": true, "startupTimeoutSeconds": 30, "requestTimeoutSeconds": 60 },
   "output": { "format": "markdown" },
-  "preferences": { "answerLength": "short", "showDonateHint": true }
+  "preferences": { "answerLength": "short", "showDonateHint": true },
+  "history": { "enabled": true, "maxContextTurns": 5 }
 }
 ```
 
@@ -114,9 +143,11 @@ model fixes providers that return `message.content` as an array of chunks.
 
 ## Agent
 
-Web access goes through **ConsoleScout.Agent**, a separate local service that drives a real browser
-with Playwright. It is a separate process because Playwright cannot be compiled with NativeAOT, which
-the CLI uses to start instantly; it also keeps the browser warm between questions.
+Web access and the question history go through **ConsoleScout.Agent**, a separate local service that
+drives a real browser with Playwright and keeps the history in SQLite. It is a separate process because
+Playwright cannot be compiled with NativeAOT, which the CLI uses to start instantly; it also keeps the
+browser warm between questions. The CLI starts it in the background as a question begins, so it is
+usually up by the time it is needed.
 
 - **Starts on demand.** The CLI starts it when a question needs the web and it is not running, and it
   stops itself after `Agent:IdleMinutes` (60 minutes in the shipped settings) without requests. `csc -r` starts it explicitly.
@@ -131,9 +162,26 @@ the CLI uses to start instantly; it also keeps the browser warm between question
   `~/.consolescout/agent.json` (0600) together with a per-start token that every request must carry. It
   also checks the `Host` header against DNS rebinding, and refuses to fetch loopback and private-network
   addresses (`Agent:Fetch:AllowPrivateNetworks`).
-- **Its own settings** are in `ConsoleScout.Agent/appsettings.json`, overridable with variables prefixed
-  `CONSOLESCOUT_AGENT_` (e.g. `CONSOLESCOUT_AGENT_Agent__Browser__Headless=false`). Its log is
-  `~/.consolescout/agent.log`.
+- **Its own settings** are in `agent/appsettings.json`; yours go in `~/.consolescout/agent-settings.json`
+  (section `Agent`), which updates leave alone. Variables prefixed `CONSOLESCOUT_AGENT_` override both
+  (e.g. `CONSOLESCOUT_AGENT_Agent__Browser__Headless=false`). Its log is `~/.consolescout/agent.log`.
+
+## Installation details
+
+- **macOS and Linux** (`install.sh`): installs to `~/.local/share/consolescout` and puts small `csc` and
+  `ConsoleScout` launchers in `~/.local/bin`. If that is not on your `PATH`, it offers to add it to your
+  shell's rc file, and in zsh to add `alias csc='noglob csc'`, both in one marked `ConsoleScout` block.
+  Options: `--yes` (no questions), `--force` (reinstall the same version), `--dir`, `--bin-dir`; pass them
+  with `… | sh -s -- --yes`. Linux builds need glibc 2.35 or newer (Ubuntu 22.04, Debian 12 and up).
+- **Windows** (`install.ps1`): installs to `%LOCALAPPDATA%\Programs\ConsoleScout` and offers to add it to
+  your user `PATH`. Options, after downloading the script: `-Yes`, `-Force`, `-Dir`.
+- **Updates.** What the first run chose is kept in `~/.consolescout/install.json`. A later run checks the
+  latest release, stops the agent, verifies the download against `SHA256SUMS.txt` and swaps the install
+  directory. Your files in `~/.consolescout` are never touched.
+- **Uninstalling.** Delete the install directory, the two launchers and the `ConsoleScout` block in your
+  rc file (or the `PATH` entry on Windows); `~/.consolescout` holds your keys, settings and history.
+- **Releases.** Every push to `master` builds all six platforms (macOS, Linux and Windows, each x64 and
+  arm64) in GitHub Actions and publishes a release `v0.1.<run>`.
 
 ## Building and publishing
 
