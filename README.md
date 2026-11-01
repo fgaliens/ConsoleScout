@@ -33,7 +33,9 @@ OpenAI-compatible chat API works.
 
 | Command | What it does |
 | --- | --- |
-| `csc` | Shows this guide and the setup status (model keys, scraper), then asks for a question - once the keys it needs are set. |
+| `csc` | Asks for a question. While a model key is missing, shows this guide and the setup status instead. |
+| `csc --status` | The setup state: configuration, model keys, scraper. Exit code 1 while a question cannot be answered. |
+| `csc --readme` | This documentation in full. |
 | `csc <question>` | Answers the question. |
 | `csc -l <question>`, `--long` | A detailed answer. |
 | `csc -s <question>`, `--short` | The shortest answer. Default length: `preferences.answerLength`. |
@@ -43,7 +45,7 @@ OpenAI-compatible chat API works.
 | `csc --donate eth` | Shows that network's address and QR code. Networks by ticker: `btc`, `eth`, `usdt`, `ton`, `sol`. |
 | `csc --no-donate` | Stops showing the donation hint while the model thinks. |
 
-A question, `--set-key`, `--run-scraper`, `--donate` and `--no-donate` cannot be combined.
+A question, `--set-key`, `--run-scraper`, `--donate`, `--no-donate`, `--status` and `--readme` cannot be combined.
 
 > **zsh and `?`:** zsh treats `?` and `*` in arguments as file patterns and stops with
 > `zsh: no matches found` before the program even starts. Add `alias csc='noglob csc'` to `~/.zshrc`,

@@ -39,6 +39,8 @@ internal static class ServiceCollectionExtensions
             .AddSingleton<SetKeyCommand>()
             .AddSingleton<RunScraperCommand>()
             .AddSingleton<GuideCommand>()
+            .AddSingleton<StatusCommand>()
+            .AddSingleton<ReadmeCommand>()
             .AddSingleton<DonateCommand>()
             .AddSingleton<NoDonateCommand>();
     }

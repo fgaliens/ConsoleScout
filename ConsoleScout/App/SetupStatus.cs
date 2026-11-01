@@ -4,13 +4,15 @@ using ConsoleScout.Scraper;
 
 namespace ConsoleScout.App;
 
-/// <summary>What the usage guide reports about this machine: whether the configuration loads, which model
-/// keys are set and whether the scraper is running. Checks only - nothing is started or written.</summary>
+/// <summary>What --status and the usage guide report about this machine: whether the configuration loads,
+/// which model keys are set and whether the scraper is running. Checks only - nothing is started or written.</summary>
 /// <param name="CanAnswer">False when a question would fail before reaching the model: a broken configuration
 /// or a missing key. The guide then does not ask for one.</param>
 internal sealed record SetupStatus(string Markdown, bool CanAnswer)
 {
-    public static async Task<SetupStatus> CheckAsync()
+    /// <param name="probeScraper">False skips asking the scraper whether it runs, which can take a moment;
+    /// <see cref="CanAnswer"/> does not depend on it.</param>
+    public static async Task<SetupStatus> CheckAsync(bool probeScraper = true)
     {
         var builder = new StringBuilder("## Status\n\n");
 
@@ -53,7 +55,10 @@ internal sealed record SetupStatus(string Markdown, bool CanAnswer)
             builder.Append("- ○ **Summarizer model**: configured but not used, page condensing is off.\n");
         }
 
-        await AppendScraperAsync(builder, settings);
+        if (probeScraper)
+        {
+            await AppendScraperAsync(builder, settings);
+        }
 
         if (missing > 0)
         {

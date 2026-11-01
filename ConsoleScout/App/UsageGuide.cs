@@ -10,17 +10,23 @@ internal static class UsageGuide
     private static readonly string[] Sections = ["Quick start", "Usage"];
 
     private const string Footer =
-        "Configuration, models, the scraper and publishing are described in **README.md**.";
+        "Configuration, models, the scraper and publishing: `csc --readme`. Setup state: `csc --status`.";
 
+    /// <summary>The introduction, quick start and usage, with a pointer to the rest.</summary>
     public static string Load()
+    {
+        var readme = LoadReadme();
+        var selected = Select(readme);
+        return $"{selected.TrimEnd()}\n\n{Footer}\n";
+    }
+
+    /// <summary>The whole README, for --readme.</summary>
+    public static string LoadReadme()
     {
         using var stream = typeof(UsageGuide).Assembly.GetManifestResourceStream(ResourceName)
             ?? throw new InvalidOperationException($"The embedded resource {ResourceName} is missing.");
         using var reader = new StreamReader(stream);
-        var readme = reader.ReadToEnd();
-
-        var selected = Select(readme);
-        return $"{selected.TrimEnd()}\n\n{Footer}\n";
+        return reader.ReadToEnd();
     }
 
     private static string Select(string readme)

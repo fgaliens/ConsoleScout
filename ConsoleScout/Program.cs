@@ -4,7 +4,8 @@ using ConsoleScout.App;
 
 var questionArgument = new Argument<string[]>("question")
 {
-    Description = "The question to answer, unquoted. Omitted: shows the usage guide and setup status, then asks for one",
+    Description = "The question to answer, unquoted. Omitted: asks for one, or, while a key is missing, "
+        + "shows the usage guide and setup status",
     Arity = ArgumentArity.ZeroOrMore,
 };
 
@@ -42,6 +43,16 @@ var noDonateOption = new Option<bool>(name: "--no-donate")
     Description = "Stop showing the donation hint while the model thinks",
 };
 
+var statusOption = new Option<bool>(name: "--status")
+{
+    Description = "Show the setup state: configuration, model keys and the scraper",
+};
+
+var readmeOption = new Option<bool>(name: "--readme")
+{
+    Description = "Show the full documentation",
+};
+
 var rootCommand = new RootCommand("Console Scout")
 {
     questionArgument,
@@ -51,6 +62,8 @@ var rootCommand = new RootCommand("Console Scout")
     runScraperOption,
     donateOption,
     noDonateOption,
+    statusOption,
+    readmeOption,
 };
 
 HelpLayout.Apply(rootCommand);
@@ -70,10 +83,13 @@ rootCommand.Validators.Add(result =>
         result.GetValue(runScraperOption),
         result.GetResult(donateOption) is not null,
         result.GetValue(noDonateOption),
+        result.GetValue(statusOption),
+        result.GetValue(readmeOption),
     };
     if (actions.Count(given => given) > 1)
     {
-        result.AddError("A question, --set-key, --run-scraper, --donate and --no-donate cannot be combined; give one of them.");
+        result.AddError("A question and the options --set-key, --run-scraper, --donate, --no-donate, --status and --readme "
+            + "cannot be combined; give one of them.");
     }
 });
 
@@ -93,7 +109,9 @@ rootCommand.SetAction((parseResult, ct) =>
             RunScraper: parseResult.GetValue(runScraperOption),
             Donate: parseResult.GetResult(donateOption) is not null,
             DonateNetwork: parseResult.GetValue(donateOption),
-            NoDonate: parseResult.GetValue(noDonateOption)),
+            NoDonate: parseResult.GetValue(noDonateOption),
+            Status: parseResult.GetValue(statusOption),
+            Readme: parseResult.GetValue(readmeOption)),
         ct);
 });
 

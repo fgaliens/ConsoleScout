@@ -18,7 +18,7 @@ internal static class ConsoleScoutApp
 
         try
         {
-            // --set-key, --donate, --no-donate and the guide need nothing from the configuration, and must keep working
+            // --set-key, --donate, --no-donate, --status, --readme and the guide need nothing from the configuration, and must keep working
             // when it is broken: saving a key is one way to repair it. Defaults stand in for the settings.
             var configuration = options.NeedsNoConfiguration
                 ? new ConfigurationBuilder().Build()
@@ -48,6 +48,17 @@ internal static class ConsoleScoutApp
                 // A fresh run for the typed question: it needs the configuration the guide did without.
                 var withQuestion = options with { Question = asked };
                 return await RunAsync(withQuestion, ct);
+            }
+
+            if (options.Status)
+            {
+                return await provider.GetRequiredService<StatusCommand>().RunAsync();
+            }
+
+            if (options.Readme)
+            {
+                provider.GetRequiredService<ReadmeCommand>().Run();
+                return 0;
             }
 
             if (options.Donate)
