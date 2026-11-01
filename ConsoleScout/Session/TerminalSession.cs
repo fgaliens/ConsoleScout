@@ -21,6 +21,26 @@ internal static class TerminalSession
 
     public static bool IsShared => Id == Shared;
 
+    /// <summary>The leader's start time. On macOS through sysctl: the leader of a Terminal tab is root's
+    /// /usr/bin/login, whose start time Process.StartTime cannot read.</summary>
+    private static long? StartTicks(int pid)
+    {
+        if (OperatingSystem.IsMacOS())
+        {
+            return MacProcessStartTime.GetUtcTicks(pid);
+        }
+
+        try
+        {
+            using var process = Process.GetProcessById(pid);
+            return process.StartTime.ToUniversalTime().Ticks;
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or Win32Exception or NotSupportedException)
+        {
+            return null;
+        }
+    }
+
     private static string Resolve()
     {
         var configured = Environment.GetEnvironmentVariable(Variable);
@@ -37,9 +57,10 @@ internal static class TerminalSession
                 return Shared;
             }
 
-            using var process = Process.GetProcessById(leader);
-            var started = process.StartTime.ToUniversalTime().Ticks;
-            return $"{leader}-{started}";
+            var started = StartTicks(leader);
+
+            // Without a start time the pid alone still keeps terminals apart, unlike one shared session.
+            return started is { } ticks ? $"{leader}-{ticks}" : $"{leader}";
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or Win32Exception
             or NotSupportedException or DllNotFoundException or EntryPointNotFoundException)
